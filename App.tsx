@@ -326,7 +326,25 @@ const UploadScreen: React.FC<{
   );
 };
 
-const ProcessingScreen: React.FC<{ t: typeof translations['en'] }> = ({ t }) => {
+const ProcessingScreen: React.FC<{ t: typeof translations['en'], error?: string | null, onBack?: () => void }> = ({ t, error, onBack }) => {
+  if (error) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-white p-6">
+        <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mb-6">
+          <span className="material-icons text-4xl text-red-500">error_outline</span>
+        </div>
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">{t.common.error}</h2>
+        <p className="text-slate-500 text-center max-w-md mb-8">{error}</p>
+        <button
+          onClick={onBack}
+          className="px-6 py-3 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-white">
       <div className="relative w-24 h-24 mb-8">
@@ -1465,16 +1483,18 @@ const InsightsScreen: React.FC<{ data: ResearchData, projectName: string, t: typ
   const { insights } = data;
 
   // Data fallbacks
-  const painPoints = (insights.keyPainPoints && insights.keyPainPoints.length > 0) ? insights.keyPainPoints : insights.painPoints;
-  const opportunities = (insights.keyOpportunities && insights.keyOpportunities.length > 0) ? insights.keyOpportunities : insights.opportunities;
-  const patterns = insights.patterns || [];
-  const sentiment = insights.sentiment;
-  const wordCloud = insights.wordCloud || [];
-  const problemPatterns = insights.problemPatternsChart || [];
-  const insightsTable = insights.insightsTable || [];
+  // Data fallbacks - ensuring insights exists first
+  const safeInsights = insights || {};
+  const painPoints = (safeInsights.keyPainPoints && safeInsights.keyPainPoints.length > 0) ? safeInsights.keyPainPoints : (safeInsights.painPoints || []);
+  const opportunities = (safeInsights.keyOpportunities && safeInsights.keyOpportunities.length > 0) ? safeInsights.keyOpportunities : (safeInsights.opportunities || []);
+  const patterns = safeInsights.patterns || [];
+  const sentiment = safeInsights.sentiment || { label: 'Neutral', score: 0 }; // Default sentiment
+  const wordCloud = safeInsights.wordCloud || [];
+  const problemPatterns = safeInsights.problemPatternsChart || [];
+  const insightsTable = safeInsights.insightsTable || [];
 
   // Prepare sentiment data for chart
-  const sentimentData = sentiment.distribution && sentiment.distribution.length > 0 ? sentiment.distribution : [
+  const sentimentData = (sentiment.distribution && sentiment.distribution.length > 0) ? sentiment.distribution : [
     { name: 'Positive', value: 0 },
     { name: 'Neutral', value: 0 },
     { name: 'Negative', value: 0 }
@@ -1699,7 +1719,16 @@ const InsightsScreen: React.FC<{ data: ResearchData, projectName: string, t: typ
 
 // --- SUMMARY SCREEN ---
 const SummaryScreen: React.FC<{ data: ResearchData, projectName: string, t: typeof translations['en'] }> = ({ data, projectName, t }) => {
-  const { summary } = data;
+  // Safe access with fallbacks
+  const summary = data.summary || {
+    keyFindings: [],
+    quotes: [],
+    recommendations: []
+  };
+
+  const keyFindings = summary.keyFindings || (data.keyFindings && data.keyFindings.length > 0 ? data.keyFindings : []);
+  const keyQuotes = summary.quotes || (data.keyQuotes && data.keyQuotes.length > 0 ? data.keyQuotes : []);
+  const recommendations = summary.recommendations || (data.recommendations && data.recommendations.length > 0 ? data.recommendations : []);
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
@@ -1714,12 +1743,14 @@ const SummaryScreen: React.FC<{ data: ResearchData, projectName: string, t: type
           {t.summary.keyFindings}
         </h2>
         <ul className="space-y-3">
-          {summary.keyFindings.map((finding, i) => (
+          {keyFindings.length > 0 ? keyFindings.map((finding, i) => (
             <li key={i} className="flex gap-3 text-slate-700 leading-relaxed">
               <span className="text-[#BFA7F5] font-bold">•</span>
               {finding}
             </li>
-          ))}
+          )) : (
+            <p className="text-slate-400 italic">No key findings generated.</p>
+          )}
         </ul>
       </div>
 
@@ -1730,11 +1761,13 @@ const SummaryScreen: React.FC<{ data: ResearchData, projectName: string, t: type
             {t.summary.voice}
           </h3>
           <div className="space-y-4">
-            {summary.quotes.map((quote, i) => (
+            {keyQuotes.length > 0 ? keyQuotes.map((quote, i) => (
               <blockquote key={i} className="relative pl-4 border-l-4 border-purple-200 italic text-purple-800 text-sm">
                 "{quote}"
               </blockquote>
-            ))}
+            )) : (
+              <p className="text-slate-400 italic pl-4">No quotes extracted.</p>
+            )}
           </div>
         </div>
 
@@ -1746,19 +1779,21 @@ const SummaryScreen: React.FC<{ data: ResearchData, projectName: string, t: type
             </h3>
           </div>
           <div className="space-y-3">
-            {summary.recommendations.map((task) => (
-              <div key={task.id} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
+            {recommendations.length > 0 ? recommendations.map((task) => (
+              <div key={task.id || Math.random()} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg border border-slate-100">
                 <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${task.priority === 'High' ? 'bg-red-500' : task.priority === 'Medium' ? 'bg-amber-500' : 'bg-green-500'
                   }`}></div>
                 <div>
                   <p className="text-sm text-slate-800 font-medium">{task.text}</p>
                   <span className={`text-[10px] uppercase font-bold tracking-wider ${task.priority === 'High' ? 'text-red-500' : task.priority === 'Medium' ? 'text-amber-600' : 'text-green-600'
                     }`}>
-                    {t.summary.priority[task.priority]} Priority
+                    {(t.summary.priority as any)[task.priority] || task.priority} Priority
                   </span>
                 </div>
               </div>
-            ))}
+            )) : (
+              <p className="text-slate-400 italic">No recommendations generated.</p>
+            )}
           </div>
         </div>
       </div>
@@ -2204,7 +2239,13 @@ export const App: React.FC = () => {
           />
         );
       case AppScreen.PROCESSING:
-        return <ProcessingScreen t={t} />;
+        return (
+          <ProcessingScreen
+            t={t}
+            error={projectState.error}
+            onBack={() => setProjectState(prev => ({ ...prev, currentScreen: AppScreen.UPLOAD, error: null }))}
+          />
+        );
       case AppScreen.END:
         return <SuccessScreen onContinue={handleContinueToTranscript} t={t} />;
       case AppScreen.TRANSCRIPT:
