@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Layout } from './components/Layout';
 import { Logo } from './components/Logo';
-import { analyzeResearchFile } from './services/geminiService';
+import { analyzeResearchFile, generateAffinityMap } from './services/geminiService';
+import { ConfirmDialog } from './components/ConfirmDialog';
 import { translations, Language } from './utils/translations';
 import {
   AppScreen,
@@ -986,6 +987,8 @@ const AffinityScreen: React.FC<{
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const viewportRef = useRef<HTMLDivElement>(null);
   const [draggedItem, setDraggedItem] = useState<{ clusterId: string, itemId: string } | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ id: string } | null>(null);
 
   useEffect(() => {
     if (data.clusters) {
@@ -1201,10 +1204,15 @@ const AffinityScreen: React.FC<{
   };
 
   const handleDeleteCluster = (clusterId: string) => {
-    if (window.confirm("Are you sure you want to delete this cluster and all its contents? This action cannot be undone.")) {
-      const newClusters = clusters.filter(c => c.id !== clusterId);
+    setDeleteConfirmation({ id: clusterId });
+  };
+
+  const confirmDeleteCluster = () => {
+    if (deleteConfirmation) {
+      const newClusters = clusters.filter(c => c.id !== deleteConfirmation.id);
       setClusters(newClusters);
       onUpdateClusters(newClusters);
+      setDeleteConfirmation(null);
     }
   };
 
@@ -1309,171 +1317,227 @@ const AffinityScreen: React.FC<{
           </button>
         </div>
       </div>
-
-      <div
-        className="flex-1 min-h-0 relative bg-slate-100 overflow-hidden cursor-grab active:cursor-grabbing canvas-bg rounded-xl border border-slate-200"
-        ref={viewportRef}
-        onMouseDown={handlePanStart}
-        onWheel={handleWheel}
-      >
-        <div
-          className="absolute origin-top-left will-change-transform"
-          style={{
-            transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`
-          }}
-        >
-          <div
-            className="absolute -inset-[10000px] opacity-20 pointer-events-none"
-            style={{
-              backgroundImage: 'radial-gradient(#94a3b8 1px, transparent 1px)',
-              backgroundSize: '24px 24px'
-            }}
-          ></div>
-
-          {clusters.map(cluster => (
-            <div
-              key={cluster.id}
-              className={`absolute flex flex-col rounded-xl shadow-sm border border-slate-200 transition-shadow overflow-hidden ${activeId === cluster.id ? 'shadow-2xl ring-2 ring-blue-400 z-10' : 'hover:shadow-md'
-                }`}
-              style={{
-                left: cluster.x,
-                top: cluster.y,
-                width: cluster.width,
-                height: cluster.height,
-                backgroundColor: cluster.color ? `${cluster.color}15` : '#F8FAFC'
+      {
+        clusters.length === 0 && !isGenerating && data.highlights && data.highlights.length > 0 && (
+          <div className="flex-1 flex flex-col items-center justify-center p-10 bg-slate-50 border border-slate-200 rounded-xl m-4">
+            <span className="material-icons text-6xl text-slate-300 mb-4">dashboard</span>
+            <h3 className="text-xl font-bold text-slate-700 mb-2">Ready to Map</h3>
+            <p className="text-slate-500 mb-6 text-center max-w-md">
+              We have {data.highlights.length} highlights ready to be clustered.
+              Click below to generate the affinity map.
+            </p>
+            <button
+              onClick={async () => {
+                setIsGenerating(true);
+                try {
+                  // Default to Ukrainian if not detectable, but really we should pass language from App level
+                  // For now assuming 'uk' as per defaults, or could pass in props.
+                  const newClusters = await generateAffinityMap(data.highlights, "uk");
+                  setClusters(newClusters);
+                  onUpdateClusters(newClusters);
+                } catch (e) {
+                  alert("Failed to generate map. Please try again.");
+                  console.error(e);
+                } finally {
+                  setIsGenerating(false);
+                }
               }}
-              onMouseDown={(e) => { e.stopPropagation(); setActiveId(cluster.id); }}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold shadow-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              <span className="material-icons">auto_awesome</span>
+              Generate Affinity Map
+            </button>
+          </div>
+        )
+      }
+
+      {
+        isGenerating && (
+          <div className="flex-1 flex flex-col items-center justify-center p-10 bg-slate-50 border border-slate-200 rounded-xl m-4">
+            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-slate-600 font-medium">Clustering insights with AI...</p>
+          </div>
+        )
+      }
+
+      {
+        clusters.length > 0 && (
+          <div
+            className="flex-1 min-h-0 relative bg-slate-100 overflow-hidden cursor-grab active:cursor-grabbing canvas-bg rounded-xl border border-slate-200"
+            ref={viewportRef}
+            onMouseDown={handlePanStart}
+            onWheel={handleWheel}
+          >
+            <div
+              className="absolute origin-top-left will-change-transform"
+              style={{
+                transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`
+              }}
             >
               <div
-                className="h-12 px-4 flex items-center gap-2 cursor-move border-b border-slate-100/50 bg-white/50 backdrop-blur-sm"
-                onMouseDown={(e) => handleDragStart(e, cluster.id)}
-              >
-                <div className="w-3 h-3 rounded-full flex-shrink-0 border border-black/5" style={{ backgroundColor: cluster.color }}></div>
+                className="absolute -inset-[10000px] opacity-20 pointer-events-none"
+                style={{
+                  backgroundImage: 'radial-gradient(#94a3b8 1px, transparent 1px)',
+                  backgroundSize: '24px 24px'
+                }}
+              ></div>
 
-                <input
-                  id={`cluster-title-${cluster.id}`}
-                  className="bg-transparent font-bold text-slate-800 text-sm focus:outline-none flex-1 min-w-0 py-1"
-                  value={cluster.title}
-                  onChange={(e) => handleUpdateTitle(cluster.id, e.target.value)}
-                  onBlur={handleTitleBlur}
-                  onMouseDown={(e) => e.stopPropagation()}
-                />
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    document.getElementById(`cluster-title-${cluster.id}`)?.focus();
+              {clusters.map(cluster => (
+                <div
+                  key={cluster.id}
+                  className={`absolute flex flex-col rounded-xl shadow-sm border border-slate-200 transition-shadow overflow-hidden ${activeId === cluster.id ? 'shadow-2xl ring-2 ring-blue-400 z-10' : 'hover:shadow-md'
+                    }`}
+                  style={{
+                    left: cluster.x,
+                    top: cluster.y,
+                    width: cluster.width,
+                    height: cluster.height,
+                    backgroundColor: cluster.color ? `${cluster.color}15` : '#F8FAFC'
                   }}
-                  className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-slate-800 hover:bg-black/5 transition-colors"
-                  title="Rename Cluster"
-                  onMouseDown={(e) => e.stopPropagation()}
+                  onMouseDown={(e) => { e.stopPropagation(); setActiveId(cluster.id); }}
                 >
-                  <span className="material-icons text-[14px]">edit</span>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteCluster(cluster.id);
-                  }}
-                  className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors ml-1"
-                  title="Delete Cluster"
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
-                  <span className="material-icons text-[14px]">delete</span>
-                </button>
-              </div>
-
-              <div
-                className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar"
-                onMouseDown={(e) => e.stopPropagation()}
-                onDragOver={handleItemDragOver}
-                onDrop={(e) => handleItemDrop(e, cluster.id)}
-              >
-                {(cluster.items || []).map((item) => (
                   <div
-                    key={item.id}
-                    className={`group relative bg-white rounded-lg p-2 shadow-sm border border-slate-100 hover:shadow-md transition-all ${draggedItem?.itemId === item.id ? 'opacity-40' : ''}`}
-                    onDragOver={handleItemDragOver}
-                    onDrop={(e) => handleItemDrop(e, cluster.id, item.id)}
+                    className="h-12 px-4 flex items-center gap-2 cursor-move border-b border-slate-100/50 bg-white/50 backdrop-blur-sm"
+                    onMouseDown={(e) => handleDragStart(e, cluster.id)}
                   >
-                    <div
-                      className="absolute top-2 left-1 cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                      draggable
-                      onDragStart={(e) => handleItemDragStart(e, cluster.id, item.id)}
-                    >
-                      <span className="material-icons text-[14px]">drag_indicator</span>
-                    </div>
+                    <div className="w-3 h-3 rounded-full flex-shrink-0 border border-black/5" style={{ backgroundColor: cluster.color }}></div>
 
-                    <textarea
-                      className="w-full text-xs text-slate-600 bg-transparent focus:outline-none resize-none overflow-hidden pl-5"
-                      value={item.text}
-                      onChange={(e) => handleUpdateNote(cluster.id, item.id, e.target.value)}
-                      onBlur={handleNoteBlur}
-                      rows={Math.max(2, Math.ceil(item.text.length / 30))}
+                    <input
+                      id={`cluster-title-${cluster.id}`}
+                      className="bg-transparent font-bold text-slate-800 text-sm focus:outline-none flex-1 min-w-0 py-1"
+                      value={cluster.title}
+                      onChange={(e) => handleUpdateTitle(cluster.id, e.target.value)}
+                      onBlur={handleTitleBlur}
+                      onMouseDown={(e) => e.stopPropagation()}
                     />
-                    {item.highlightIds && item.highlightIds.length > 0 && (
-                      <div className="absolute bottom-1 right-2 text-[9px] text-slate-300 font-mono">
-                        {item.highlightIds.length} quotes
-                      </div>
-                    )}
+
                     <button
-                      onClick={() => handleDeleteNote(cluster.id, item.id)}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-100 text-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-sm transition-all hover:bg-red-200"
-                      title="Delete note"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        document.getElementById(`cluster-title-${cluster.id}`)?.focus();
+                      }}
+                      className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-slate-800 hover:bg-black/5 transition-colors"
+                      title="Rename Cluster"
+                      onMouseDown={(e) => e.stopPropagation()}
                     >
-                      <span className="material-icons text-[12px]">close</span>
+                      <span className="material-icons text-[14px]">edit</span>
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteCluster(cluster.id);
+                      }}
+                      className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors ml-1"
+                      title="Delete Cluster"
+                      onMouseDown={(e) => e.stopPropagation()}
+                    >
+                      <span className="material-icons text-[14px]">delete</span>
                     </button>
                   </div>
-                ))}
 
-                <button
-                  onClick={() => handleAddNote(cluster.id)}
-                  className="w-full py-2 flex items-center justify-center gap-1 text-xs text-slate-500 hover:text-slate-800 hover:bg-white/50 rounded-lg border border-dashed border-slate-300 transition-colors mt-2"
-                >
-                  <span className="material-icons text-[14px]">add</span>
-                  Add Note
-                </button>
-              </div>
+                  <div
+                    className="flex-1 overflow-y-auto p-3 space-y-2 custom-scrollbar"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onDragOver={handleItemDragOver}
+                    onDrop={(e) => handleItemDrop(e, cluster.id)}
+                  >
+                    {(cluster.items || []).map((item) => (
+                      <div
+                        key={item.id}
+                        className={`group relative bg-white rounded-lg p-2 shadow-sm border border-slate-100 hover:shadow-md transition-all ${draggedItem?.itemId === item.id ? 'opacity-40' : ''}`}
+                        onDragOver={handleItemDragOver}
+                        onDrop={(e) => handleItemDrop(e, cluster.id, item.id)}
+                      >
+                        <div
+                          className="absolute top-2 left-1 cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                          draggable
+                          onDragStart={(e) => handleItemDragStart(e, cluster.id, item.id)}
+                        >
+                          <span className="material-icons text-[14px]">drag_indicator</span>
+                        </div>
 
-              <div
-                className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-center justify-center text-slate-300 hover:text-slate-500"
-                onMouseDown={(e) => handleResizeStart(e, cluster.id)}
-              >
-                <span className="material-icons text-[14px] rotate-45">filter_list</span>
-              </div>
+                        <textarea
+                          className="w-full text-xs text-slate-600 bg-transparent focus:outline-none resize-none overflow-hidden pl-5"
+                          value={item.text}
+                          onChange={(e) => handleUpdateNote(cluster.id, item.id, e.target.value)}
+                          onBlur={handleNoteBlur}
+                          rows={Math.max(2, Math.ceil(item.text.length / 30))}
+                        />
+                        {item.highlightIds && item.highlightIds.length > 0 && (
+                          <div className="absolute bottom-1 right-2 text-[9px] text-slate-300 font-mono">
+                            {item.highlightIds.length} quotes
+                          </div>
+                        )}
+                        <button
+                          onClick={() => handleDeleteNote(cluster.id, item.id)}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-100 text-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 shadow-sm transition-all hover:bg-red-200"
+                          title="Delete note"
+                        >
+                          <span className="material-icons text-[12px]">close</span>
+                        </button>
+                      </div>
+                    ))}
+
+                    <button
+                      onClick={() => handleAddNote(cluster.id)}
+                      className="w-full py-2 flex items-center justify-center gap-1 text-xs text-slate-500 hover:text-slate-800 hover:bg-white/50 rounded-lg border border-dashed border-slate-300 transition-colors mt-2"
+                    >
+                      <span className="material-icons text-[14px]">add</span>
+                      Add Note
+                    </button>
+                  </div>
+
+                  <div
+                    className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize flex items-center justify-center text-slate-300 hover:text-slate-500"
+                    onMouseDown={(e) => handleResizeStart(e, cluster.id)}
+                  >
+                    <span className="material-icons text-[14px] rotate-45">filter_list</span>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <div className="absolute bottom-6 right-6 flex flex-col gap-2 bg-white rounded-lg shadow-lg border border-slate-100 p-1 z-20">
-          <button
-            onClick={zoomIn}
-            className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-colors"
-            title="Zoom In"
-          >
-            <span className="material-icons text-lg">add</span>
-          </button>
-          <button
-            onClick={zoomOut}
-            className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-colors"
-            title="Zoom Out"
-          >
-            <span className="material-icons text-lg">remove</span>
-          </button>
-          <div className="h-px bg-slate-200 my-0.5"></div>
-          <button
-            onClick={resetView}
-            className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-colors"
-            title="Reset View"
-          >
-            <span className="material-icons text-lg">center_focus_strong</span>
-          </button>
-        </div>
 
-        <div className="absolute bottom-6 left-6 bg-white/80 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-slate-500 border border-slate-200 pointer-events-none">
-          {Math.round(scale * 100)}%
-        </div>
-      </div>
+            <div className="absolute bottom-6 right-6 flex flex-col gap-2 bg-white rounded-lg shadow-lg border border-slate-100 p-1 z-20">
+              <button
+                onClick={zoomIn}
+                className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                title="Zoom In"
+              >
+                <span className="material-icons text-lg">add</span>
+              </button>
+              <button
+                onClick={zoomOut}
+                className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                title="Zoom Out"
+              >
+                <span className="material-icons text-lg">remove</span>
+              </button>
+              <div className="h-px bg-slate-200 my-0.5"></div>
+              <button
+                onClick={resetView}
+                className="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded transition-colors"
+                title="Reset View"
+              >
+                <span className="material-icons text-lg">center_focus_strong</span>
+              </button>
+            </div>
+
+            <div className="absolute bottom-6 left-6 bg-white/80 backdrop-blur px-3 py-1 rounded-full text-xs font-mono text-slate-500 border border-slate-200 pointer-events-none">
+              {Math.round(scale * 100)}%
+            </div>
+          </div>
+        )}
+
+      <ConfirmDialog
+        isOpen={!!deleteConfirmation}
+        title="Delete Cluster"
+        message="Are you sure you want to delete this cluster and all its contents? This action cannot be undone."
+        confirmLabel="Delete"
+        isDestructive={true}
+        onConfirm={confirmDeleteCluster}
+        onCancel={() => setDeleteConfirmation(null)}
+      />
     </div>
   );
 };
@@ -1808,7 +1872,8 @@ export const App: React.FC = () => {
       const storedState = localStorage.getItem(STORAGE_KEY);
       if (storedState) {
         const parsedState = JSON.parse(storedState);
-        return { ...parsedState, files: [], isProcessing: false, error: null };
+        // CLEAR files AND data on reload to prevent ghost state
+        return { ...parsedState, files: [], data: null, isProcessing: false, error: null };
       }
     } catch (e) {
       console.error("Failed to parse stored project state:", e);
@@ -1830,32 +1895,7 @@ export const App: React.FC = () => {
       if (storedHistory) {
         return JSON.parse(storedHistory);
       }
-      return [
-        {
-          id: 'mock-1',
-          name: 'Pricing research – Q4',
-          date: new Date().toISOString(),
-          fileType: 'audio',
-          fileCount: 4,
-          data: INITIAL_DATA
-        },
-        {
-          id: 'mock-2',
-          name: 'Onboarding usability tests',
-          date: new Date(Date.now() - 86400000).toISOString(),
-          fileType: 'video',
-          fileCount: 2,
-          data: INITIAL_DATA
-        },
-        {
-          id: 'mock-3',
-          name: 'Beta feedback – Mobile app',
-          date: new Date('2025-11-12').toISOString(),
-          fileType: 'text',
-          fileCount: 0,
-          data: INITIAL_DATA
-        }
-      ];
+      return [];
     } catch (e) {
       console.error("Failed to parse stored history:", e);
       localStorage.removeItem(HISTORY_STORAGE_KEY);
@@ -1864,6 +1904,14 @@ export const App: React.FC = () => {
   });
 
   const [language, setLanguage] = useState<Language>('en');
+
+  // Global confirmation state
+  const [confirmation, setConfirmation] = useState<{
+    type: 'project';
+    id: string;
+    title: string;
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     const serializableState = {
@@ -2207,9 +2255,22 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteProject = (projectId: string) => {
-    setHistory(prevHistory => prevHistory.filter(p => p.id !== projectId));
-    if (projectState.id === projectId) {
-      handleNewProject();
+    setConfirmation({
+      type: 'project',
+      id: projectId,
+      title: "Delete Project",
+      message: "Are you sure you want to delete this project? All associated data including transcripts and analysis will be permanently lost."
+    });
+  };
+
+  const executeDeletion = () => {
+    if (confirmation && confirmation.type === 'project') {
+      const projectId = confirmation.id;
+      setHistory(prevHistory => prevHistory.filter(p => p.id !== projectId));
+      if (projectState.id === projectId) {
+        handleNewProject();
+      }
+      setConfirmation(null);
     }
   };
 
@@ -2327,6 +2388,15 @@ export const App: React.FC = () => {
       }
     >
       {renderScreen()}
+      <ConfirmDialog
+        isOpen={!!confirmation}
+        title={confirmation?.title || ""}
+        message={confirmation?.message || ""}
+        confirmLabel="Delete"
+        isDestructive={true}
+        onConfirm={executeDeletion}
+        onCancel={() => setConfirmation(null)}
+      />
     </Layout>
   );
 };
