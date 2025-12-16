@@ -1,5 +1,5 @@
 export const config = {
-    runtime: "nodejs20.x",
+    runtime: "nodejs18.x",
 };
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import formidable from "formidable";
