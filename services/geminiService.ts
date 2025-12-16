@@ -1,53 +1,69 @@
-// services/geminiService.ts
-import type { ResearchData, Language } from "../types";
+import { ResearchData, Language } from "../types";
 
 /**
- * Надсилає файл на серверний ендпоінт /api/analyze (Vercel Function),
- * де вже є доступ до process.env.GEMINI_API_KEY
+ * Frontend service:
+ * - НЕ читає ключі
+ * - Викликає Vercel Serverless Functions (/api/*)
  */
+
 export const analyzeResearchFile = async (
   file: File,
   fileType: "video" | "audio" | "text",
   onProgress?: (status: "uploading" | "processing" | "uploaded", progress?: number) => void,
   language: Language = "uk"
 ): Promise<ResearchData> => {
-  if (onProgress) onProgress("uploading", 10);
-
   const form = new FormData();
   form.append("file", file);
   form.append("fileType", fileType);
   form.append("language", language);
 
-  // Важливо: відносний шлях, щоб працювало і локально, і на Vercel
+  onProgress?.("uploading", 10);
+
   const res = await fetch("/api/analyze", {
     method: "POST",
     body: form,
   });
 
-  if (onProgress) onProgress("processing", 80);
+  onProgress?.("processing", 70);
 
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json().catch(() => null);
 
   if (!res.ok) {
-    const msg = data?.error || `Analyze failed (${res.status})`;
+    const msg =
+      data?.error ||
+      data?.message ||
+      `Request failed: ${res.status} ${res.statusText}`;
     throw new Error(msg);
   }
 
-  if (onProgress) onProgress("uploaded", 100);
-
+  onProgress?.("uploaded", 100);
   return data as ResearchData;
 };
 
 /**
- * Якщо зараз affinity мапа тобі НЕ треба — можеш залишити,
- * але App.ts тоді не буде ламатись на імпорті.
- *
- * Тут заглушка (пізніше зробимо /api/affinity і підключимо).
+ * Optional: Affinity map generation.
+ * Якщо у тебе вкладка Affinity використовує generateAffinityMap —
+ * цей експорт має існувати, інакше build падає.
  */
 export const generateAffinityMap = async (
-  _highlights: any[],
-  _language: Language = "uk"
+  highlights: any[],
+  language: Language = "uk"
 ): Promise<any[]> => {
-  // Повертаємо пусто, щоб UI не падав
-  return [];
+  const res = await fetch("/api/affinity", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ highlights, language }),
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    const msg =
+      data?.error ||
+      data?.message ||
+      `Affinity failed: ${res.status} ${res.statusText}`;
+    throw new Error(msg);
+  }
+
+  return (data?.clusters || []) as any[];
 };
