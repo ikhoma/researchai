@@ -85,8 +85,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         const apiKey = process.env.GEMINI_API_KEY;
+
+        const vercelEnv = process.env.VERCEL_ENV; // "production" | "preview" | "development"
+        const hasKey = Boolean(apiKey);
+
         if (!apiKey) {
-            return res.status(500).json({ error: "Server API key missing: GEMINI_API_KEY" });
+            return res.status(500).json({
+                error: "Server API key missing: GEMINI_API_KEY",
+                debug: {
+                    vercelEnv,
+                    hasKey,
+                    node: process.version,
+                },
+            });
         }
 
         const { fields, files } = await parseForm(req);
