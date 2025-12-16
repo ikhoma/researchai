@@ -1,6 +1,3 @@
-export const config = {
-    runtime: "nodejs20.x",
-};
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 
