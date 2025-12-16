@@ -428,31 +428,14 @@ Return ONLY valid JSON matching the MAIN_SCHEMA.
     // --- Normalize output to ResearchData ---
     const ensureArray = (arr: any) => (Array.isArray(arr) ? arr : []);
 
-    // Transform flat API clusters into UI Clusters
-    const apiClusters = ensureArray(affinityJson.items);
-    const uiClusters = apiClusters.map((cluster: any, index: number) => {
-      const clusterItems = ensureArray(cluster.highlightIds).map((hId: string) => {
-        const highlight = highlights.find((h: any) => h.id === hId);
-        return {
-          id: hId || Math.random().toString(36).substr(2, 9),
-          text: highlight ? highlight.text : "Missing quote...",
-          highlightIds: [hId],
-          type: 'note'
-        };
-      });
+    // Transform flat API clusters into UI Clusters from the main flow
+    // (This logic is now duplicated/shared with generateAffinityMap, but we keep it here for continuity if successful)
+    // Actually, let's use the helper if we had valid JSON
+    let uiClusters: any[] = [];
+    if (affinityJson && affinityJson.items && Array.isArray(affinityJson.items) && affinityJson.items.length > 0) {
+      uiClusters = transformApiClustersToUiClusters(affinityJson.items, highlights);
+    }
 
-      // Initialize with default layout positions (grid-ish)
-      return {
-        id: cluster.id || `cluster-${index}`,
-        title: cluster.title || "Untitled Cluster",
-        items: clusterItems,
-        color: cluster.color || "#E2E8F0",
-        x: 50 + (index % 3) * 350,
-        y: 50 + Math.floor(index / 3) * 400,
-        width: 300,
-        height: 340
-      };
-    });
 
     // Map themes to Insights Table format
     const insightsTable = ensureArray(insightsJson.themes).map((t: any) => ({
@@ -503,6 +486,79 @@ Return ONLY valid JSON matching the MAIN_SCHEMA.
     }
 
     console.error("Gemini Analysis Error:", error);
+    throw error;
+  }
+};
+
+// -----------------------------
+// Standalone Affinity Generator
+// -----------------------------
+
+const transformApiClustersToUiClusters = (apiClusters: any[], highlights: any[]) => {
+  const ensureArray = (arr: any) => (Array.isArray(arr) ? arr : []);
+
+  return ensureArray(apiClusters).map((cluster: any, index: number) => {
+    const clusterItems = ensureArray(cluster.highlightIds).map((hId: string) => {
+      const highlight = highlights.find((h: any) => h.id === hId);
+      return {
+        id: hId || Math.random().toString(36).substr(2, 9),
+        text: highlight ? highlight.text : "Missing quote...",
+        highlightIds: [hId],
+        type: 'note'
+      };
+    });
+
+    // Initialize with default layout positions (grid-ish)
+    return {
+      id: cluster.id || `cluster-${index}`,
+      title: cluster.title || "Untitled Cluster",
+      items: clusterItems,
+      color: cluster.color || "#E2E8F0",
+      x: 50 + (index % 3) * 350,
+      y: 50 + Math.floor(index / 3) * 400,
+      width: 300,
+      height: 340
+    };
+  });
+};
+
+export const generateAffinityMap = async (
+  highlights: any[],
+  language: Language = "uk"
+): Promise<any[]> => {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) throw new Error("API Key not found.");
+
+  const ai = new GoogleGenAI({ apiKey });
+  const reasonModelName = "gemini-2.5-flash";
+  const languagePrompt = language === "uk" ? "Ukrainian" : "English";
+
+  const affinityUserMessage = `Here are the research highlights:\n${JSON.stringify(
+    highlights
+  )}\n\nGenerate the affinity map in ${languagePrompt}.`;
+
+  try {
+    const affinityResponse = await retryOperation(async () => {
+      return await ai.models.generateContent({
+        model: reasonModelName,
+        contents: {
+          parts: [{ text: AFFINITY_SYSTEM_PROMPT }, { text: affinityUserMessage }],
+        },
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: AFFINITY_SCHEMA,
+          temperature: 0.3,
+        },
+      });
+    }, 2, 2000, "Affinity Mapping Manual");
+
+    const affinityJson = JSON.parse(affinityResponse.text || "{}");
+
+    // Transform to UI format
+    return transformApiClustersToUiClusters(affinityJson.items, highlights);
+
+  } catch (error) {
+    console.error("Manual Affinity Generation Failed:", error);
     throw error;
   }
 };
