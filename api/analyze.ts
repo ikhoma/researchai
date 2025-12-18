@@ -48,8 +48,20 @@ const MAIN_SCHEMA: Schema = {
                     properties: {
                         label: { type: Type.STRING, enum: ["Positive", "Neutral", "Negative", "Mixed"] },
                         score: { type: Type.INTEGER },
+                        distribution: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    name: { type: Type.STRING },
+                                    value: { type: Type.INTEGER },
+                                    color: { type: Type.STRING },
+                                },
+                                required: ["name", "value", "color"],
+                            },
+                        },
                     },
-                    required: ["label", "score"],
+                    required: ["label", "score", "distribution"],
                 },
             },
             required: ["painPoints", "opportunities", "patterns", "sentiment"],
@@ -64,10 +76,11 @@ const MAIN_SCHEMA: Schema = {
                     items: {
                         type: Type.OBJECT,
                         properties: {
+                            id: { type: Type.STRING },
                             text: { type: Type.STRING },
                             priority: { type: Type.STRING, enum: ["High", "Medium", "Low"] },
                         },
-                        required: ["text", "priority"],
+                        required: ["id", "text", "priority"],
                     },
                 },
             },

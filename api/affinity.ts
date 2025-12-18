@@ -79,7 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         const json = JSON.parse(response.text || "{}");
-        return res.status(200).json(json.clusters || []);
+        return res.status(200).json({ clusters: json.clusters || [] });
     } catch (e: any) {
         console.error(e);
         return res.status(500).json({ error: e?.message || "Server error" });
