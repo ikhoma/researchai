@@ -4,32 +4,45 @@ import { GoogleGenAI, Type, Schema } from "@google/genai";
 const AFFINITY_SCHEMA: Schema = {
     type: Type.OBJECT,
     properties: {
-        items: {
+        clusters: {
             type: Type.ARRAY,
             items: {
                 type: Type.OBJECT,
                 properties: {
                     id: { type: Type.STRING },
-                    type: { type: Type.STRING, enum: ["theme", "subcluster"] },
                     title: { type: Type.STRING },
                     color: { type: Type.STRING },
-                    parentId: { type: Type.STRING },
-                    highlightIds: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    items: {
+                        type: Type.ARRAY,
+                        items: {
+                            type: Type.OBJECT,
+                            properties: {
+                                id: { type: Type.STRING },
+                                text: { type: Type.STRING },
+                                highlightIds: { type: Type.ARRAY, items: { type: Type.STRING } },
+                                type: { type: Type.STRING, enum: ["note", "subcluster"] },
+                            },
+                            required: ["id", "text"],
+                        },
+                    },
                 },
-                required: ["id", "type", "title"],
+                required: ["id", "title", "items", "color"],
             },
         },
     },
-    required: ["items"],
+    required: ["clusters"],
 };
 
 const AFFINITY_SYSTEM_PROMPT = `
 You are a qualitative research clustering engine.
-Return ONLY valid JSON that follows the AFFINITY_SCHEMA.
+Analyze the provided highlights and group them into logical clusters.
+Each cluster should have a title, a color (pastel hex), and a list of items.
+Each item represents a synthesized note or a group of highlights.
+
 Rules:
 - Use ALL provided highlights.
 - No orphan highlights.
-- Themes: 2–4 words, Subclusters: 2–5 words.
+- Themes: 2–4 words.
 - No fluff.
 `;
 
@@ -53,10 +66,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         const userMessage = `Here are the research highlights:\n${JSON.stringify(
             highlights
-        )}\n\nGenerate the affinity map in ${languagePrompt}.`;
+        )}\n\nGenerate the affinity map (clusters and items) in ${languagePrompt}. Return ONLY valid JSON matching the AFFINITY_SCHEMA.`;
 
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-1.5-flash",
             contents: { parts: [{ text: AFFINITY_SYSTEM_PROMPT }, { text: userMessage }] },
             config: {
                 responseMimeType: "application/json",
@@ -66,8 +79,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         });
 
         const json = JSON.parse(response.text || "{}");
-        // тут можна повернути items як clusters (поки 1-в-1)
-        return res.status(200).json({ clusters: json.items || [] });
+        return res.status(200).json(json.clusters || []);
     } catch (e: any) {
         console.error(e);
         return res.status(500).json({ error: e?.message || "Server error" });

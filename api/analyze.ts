@@ -37,35 +37,44 @@ const MAIN_SCHEMA: Schema = {
                 required: ["id", "text", "tagId"],
             },
         },
-        painPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
-        opportunities: { type: Type.ARRAY, items: { type: Type.STRING } },
-        patterns: { type: Type.ARRAY, items: { type: Type.STRING } },
-        sentiment: {
+        insights: {
             type: Type.OBJECT,
             properties: {
-                label: { type: Type.STRING, enum: ["Positive", "Neutral", "Negative", "Mixed"] },
-                score: { type: Type.INTEGER },
-                positivePct: { type: Type.INTEGER },
-                neutralPct: { type: Type.INTEGER },
-                negativePct: { type: Type.INTEGER },
-            },
-            required: ["label", "score"],
-        },
-        keyFindings: { type: Type.ARRAY, items: { type: Type.STRING } },
-        keyQuotes: { type: Type.ARRAY, items: { type: Type.STRING } },
-        recommendations: {
-            type: Type.ARRAY,
-            items: {
-                type: Type.OBJECT,
-                properties: {
-                    text: { type: Type.STRING },
-                    priority: { type: Type.STRING, enum: ["High", "Medium", "Low"] },
+                painPoints: { type: Type.ARRAY, items: { type: Type.STRING } },
+                opportunities: { type: Type.ARRAY, items: { type: Type.STRING } },
+                patterns: { type: Type.ARRAY, items: { type: Type.STRING } },
+                sentiment: {
+                    type: Type.OBJECT,
+                    properties: {
+                        label: { type: Type.STRING, enum: ["Positive", "Neutral", "Negative", "Mixed"] },
+                        score: { type: Type.INTEGER },
+                    },
+                    required: ["label", "score"],
                 },
-                required: ["text", "priority"],
             },
+            required: ["painPoints", "opportunities", "patterns", "sentiment"],
+        },
+        summary: {
+            type: Type.OBJECT,
+            properties: {
+                keyFindings: { type: Type.ARRAY, items: { type: Type.STRING } },
+                quotes: { type: Type.ARRAY, items: { type: Type.STRING } },
+                recommendations: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            text: { type: Type.STRING },
+                            priority: { type: Type.STRING, enum: ["High", "Medium", "Low"] },
+                        },
+                        required: ["text", "priority"],
+                    },
+                },
+            },
+            required: ["keyFindings", "quotes", "recommendations"],
         },
     },
-    required: ["transcript", "tags", "highlights"],
+    required: ["transcript", "tags", "highlights", "insights", "summary"],
 };
 
 function parseForm(req: VercelRequest) {
@@ -140,6 +149,7 @@ Tasks:
 4) INSIGHTS:
    - Pain Points, Opportunities, Patterns.
    - Sentiment.
+5) SUMMARY:
    - Key Findings + quotes + recommendations.
 
 Output language: ${languagePrompt}.
@@ -147,7 +157,7 @@ Return ONLY valid JSON matching the MAIN_SCHEMA.
 `;
 
         const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: "gemini-1.5-flash",
             contents: {
                 parts: [
                     { inlineData: { data: base64, mimeType } },
