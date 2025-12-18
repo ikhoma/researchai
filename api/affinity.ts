@@ -69,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         )}\n\nGenerate the affinity map (clusters and items) in ${languagePrompt}. Return ONLY valid JSON matching the AFFINITY_SCHEMA.`;
 
         const response = await ai.models.generateContent({
-            model: "gemini-1.5-flash",
+            model: "gemini-2.5-flash",
             contents: { parts: [{ text: AFFINITY_SYSTEM_PROMPT }, { text: userMessage }] },
             config: {
                 responseMimeType: "application/json",
