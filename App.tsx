@@ -1342,7 +1342,7 @@ const AffinityScreen: React.FC<{
                   setIsGenerating(false);
                 }
               }}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold shadow-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+              className="px-8 py-4 bg-slate-900 text-white text-lg font-bold rounded-xl shadow-lg hover:bg-slate-800 hover:scale-105 transition-all flex items-center gap-2"
             >
               <span className="material-icons">auto_awesome</span>
               Generate Affinity Map
