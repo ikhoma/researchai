@@ -59,21 +59,6 @@ const getRandomPastelColor = () => {
   return `hsl(${hue}, 75%, 85%)`;
 };
 
-const extractYouTubeId = (url: string): string => {
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname === 'youtu.be') return parsed.pathname.slice(1).split('?')[0];
-    if (parsed.hostname.includes('youtube.com') || parsed.hostname.includes('youtube-nocookie.com')) {
-      const videoParam = parsed.searchParams.get('v');
-      if (videoParam) return videoParam;
-      const pathMatch = parsed.pathname.match(/\/(?:shorts|embed|live)\/([A-Za-z0-9_-]{11})/);
-      if (pathMatch) return pathMatch[1];
-    }
-  } catch { /* fall through to regex */ }
-  const match = url.match(/(?:v=|youtu\.be\/|\/shorts\/|\/embed\/|\/live\/)([A-Za-z0-9_-]{11})/);
-  return match ? match[1] : '';
-};
-
 // --- Sub-components for Screens ---
 
 const StartScreen: React.FC<{ onStart: () => void, t: typeof translations['en'] }> = ({ onStart, t }) => (
@@ -108,7 +93,7 @@ const StartScreen: React.FC<{ onStart: () => void, t: typeof translations['en'] 
 
 const UploadScreen: React.FC<{
   onAddFiles: (files: File[], projectName: string) => void,
-  onAddYoutubeUrl: (url: string, projectName: string, transcriptOverride?: string) => void,
+  onAddYoutubeUrl: (url: string) => void,
   onRemoveFile: (fileId: string) => void,
   files: ProjectFile[],
   isProcessing?: boolean,
@@ -122,8 +107,6 @@ const UploadScreen: React.FC<{
   const [dragActive, setDragActive] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
-  const [youtubeTranscript, setYoutubeTranscript] = useState('');
-  const [showYoutubeTranscript, setShowYoutubeTranscript] = useState(false);
   const [youtubeError, setYoutubeError] = useState('');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
@@ -181,16 +164,14 @@ const UploadScreen: React.FC<{
   const handleYoutubeAdd = () => {
     const url = youtubeUrl.trim();
     if (!url) return;
-    const isYouTube = /youtube\.com\/watch|youtu\.be\/|youtube\.com\/shorts/.test(url);
-    if (!isYouTube) {
-      setYoutubeError('Please enter a valid YouTube URL (youtube.com/watch?v=... or youtu.be/...)');
+    const isValidYoutube = /(?:youtube\.com\/watch\?v=|youtu\.be\/)[A-Za-z0-9_-]{11}/.test(url);
+    if (!isValidYoutube) {
+      setYoutubeError('Please enter a valid YouTube URL (e.g. https://youtube.com/watch?v=...)');
       return;
     }
-    onAddYoutubeUrl(url, projectName, youtubeTranscript.trim() || undefined);
-    setYoutubeUrl('');
-    setYoutubeTranscript('');
-    setShowYoutubeTranscript(false);
     setYoutubeError('');
+    setYoutubeUrl('');
+    onAddYoutubeUrl(url);
   };
 
   const hasCompletedFiles = files.some(f => f.status === 'uploaded');
@@ -293,22 +274,6 @@ const UploadScreen: React.FC<{
                 Add
               </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setShowYoutubeTranscript(prev => !prev)}
-              className="mt-3 text-xs font-medium text-slate-500 hover:text-slate-800 flex items-center gap-1 mx-auto"
-            >
-              <span className="material-icons text-sm">{showYoutubeTranscript ? 'expand_less' : 'expand_more'}</span>
-              Paste transcript manually
-            </button>
-            {showYoutubeTranscript && (
-              <textarea
-                value={youtubeTranscript}
-                onChange={(e) => setYoutubeTranscript(e.target.value)}
-                placeholder="Paste the YouTube transcript here if automatic fetching is blocked."
-                className="mt-3 w-full min-h-32 px-4 py-3 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:border-[#BFA7F5] transition-colors placeholder-slate-400 resize-y"
-              />
-            )}
             {youtubeError && (
               <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
                 <span className="material-icons text-sm">error_outline</span>
@@ -342,7 +307,7 @@ const UploadScreen: React.FC<{
                   <div className="absolute bottom-0 left-0 h-1 w-full bg-[#BFA7F5]"></div>
                 )}
 
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center border ${fileItem.type === 'youtube' ? 'bg-red-50 border-red-200 text-red-500' : 'bg-white border-slate-200 text-slate-500'}`}>
+                <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center border border-slate-200" style={{ color: fileItem.type === 'youtube' ? '#ef4444' : '#64748b' }}>
                   <span className="material-icons">
                     {fileItem.type === 'youtube' ? 'smart_display' : fileItem.type === 'video' ? 'videocam' : fileItem.type === 'audio' ? 'graphic_eq' : 'description'}
                   </span>
@@ -350,12 +315,13 @@ const UploadScreen: React.FC<{
 
                 <div className="flex-1 min-w-0">
                   <h4 className="font-semibold text-slate-900 truncate text-sm">
-                    {fileItem.type === 'youtube'
-                      ? (fileItem.youtubeTitle || fileItem.youtubeUrl || 'YouTube Video')
-                      : fileItem.file.name}
+                    {fileItem.type === 'youtube' ? (fileItem.youtubeTitle || fileItem.youtubeUrl || fileItem.file.name) : fileItem.file.name}
                   </h4>
                   <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                    <span>{fileItem.type === 'youtube' ? 'YouTube' : formatFileSize(fileItem.file.size)}</span>
+                    {fileItem.type === 'youtube'
+                      ? <span className="text-red-500 font-medium">YouTube</span>
+                      : <span>{formatFileSize(fileItem.file.size)}</span>
+                    }
                     {fileItem.status === 'uploading' && <span>• {t.upload.uploading} {fileItem.progress}%</span>}
                   </div>
                   {fileItem.status === 'error' && fileItem.error && (
@@ -776,7 +742,7 @@ const TranscriptScreen: React.FC<{
           {files && files.map(file => {
             const isExpanded = expandedState[file.id];
             const displayData = file.analysisData;
-            const mediaUrl = file.type === 'youtube' ? null : URL.createObjectURL(file.file);
+            const mediaUrl = URL.createObjectURL(file.file);
             const filter = getFilter(file.id);
 
             return (
@@ -787,16 +753,12 @@ const TranscriptScreen: React.FC<{
                 >
                   <div className="flex items-center gap-3">
                     <span className="material-icons text-slate-500">
-                      {file.type === 'youtube' ? 'smart_display' : file.type === 'video' ? 'videocam' : file.type === 'audio' ? 'graphic_eq' : 'description'}
+                      {file.type === 'video' ? 'videocam' : file.type === 'audio' ? 'graphic_eq' : 'description'}
                     </span>
                     <div className="text-left">
-                      <h3 className="font-semibold text-slate-900 text-sm">
-                        {file.type === 'youtube'
-                          ? (file.youtubeTitle || file.youtubeUrl || 'YouTube Video')
-                          : file.file.name}
-                      </h3>
+                      <h3 className="font-semibold text-slate-900 text-sm">{file.file.name}</h3>
                       <div className="text-xs text-slate-500 flex items-center gap-2">
-                        <span>{file.type === 'youtube' ? 'YouTube' : formatFileSize(file.file.size)}</span>
+                        <span>{formatFileSize(file.file.size)}</span>
                         {file.status === 'processing' && <span className="text-amber-500">• Processing...</span>}
                         {file.status === 'uploaded' && <span className="text-green-600">• Indexed</span>}
                       </div>
@@ -809,14 +771,14 @@ const TranscriptScreen: React.FC<{
 
                 {isExpanded && (
                   <div className="p-4 md:p-6 animate-fade-in">
-                    <div className="bg-black aspect-video rounded-lg overflow-hidden flex items-center justify-center relative group mb-6">
+                    <div className="rounded-lg overflow-hidden relative group mb-6" style={{ background: file.type === 'youtube' ? 'transparent' : 'black', aspectRatio: '16/9' }}>
                       {file.type === 'youtube' && file.youtubeUrl ? (
                         <iframe
-                          src={`https://www.youtube.com/embed/${extractYouTubeId(file.youtubeUrl)}`}
-                          className="w-full h-full"
+                          src={`https://www.youtube.com/embed/${(() => { try { const u = new URL(file.youtubeUrl); return u.hostname === 'youtu.be' ? u.pathname.slice(1) : u.searchParams.get('v') || ''; } catch { return ''; } })()}`}
+                          className="w-full h-full rounded-lg"
                           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                           allowFullScreen
-                          title={file.youtubeTitle || 'YouTube Video'}
+                          title="YouTube video"
                         />
                       ) : mediaUrl ? (
                         file.type === 'video' ? (
@@ -825,7 +787,7 @@ const TranscriptScreen: React.FC<{
                           <audio src={mediaUrl} controls className="w-full px-10" />
                         )
                       ) : (
-                        <div className="text-slate-500 flex flex-col items-center">
+                        <div className="text-slate-500 flex flex-col items-center justify-center h-full">
                           <span className="material-icons text-4xl mb-2 opacity-50">play_circle_outline</span>
                           <span className="text-sm">No preview available</span>
                         </div>
@@ -2123,8 +2085,7 @@ export const App: React.FC = () => {
 
     newProjectFiles.forEach(async (projectFile) => {
       try {
-        const fileType = projectFile.type as 'video' | 'audio' | 'text';
-        const analyzedData = await analyzeResearchFile(projectFile.file, fileType, (status, progress) => {
+        const analyzedData = await analyzeResearchFile(projectFile.file, projectFile.type as 'video' | 'audio' | 'text', (status, progress) => {
           setProjectState(prevState => {
             if (!prevState.files.find(f => f.id === projectFile.id)) return prevState;
             return {
@@ -2190,70 +2151,61 @@ export const App: React.FC = () => {
     });
   };
 
-  const handleAddYoutubeUrl = async (youtubeUrl: string, projectName: string, transcriptOverride?: string) => {
-    const id = Math.random().toString(36).substr(2, 9);
-    const projectId = projectState.id || Math.random().toString(36).substr(2, 9);
-    const syntheticFile = new File([youtubeUrl], `youtube-${id}.txt`, { type: 'text/plain' });
-
+  const handleAddYoutubeUrl = async (url: string) => {
+    const fileId = Math.random().toString(36).substr(2, 9);
+    // Create a lightweight synthetic File so the rest of the state shape stays identical
+    const syntheticFile = new File([], url, { type: 'text/plain' });
     const projectFile: ProjectFile = {
-      id,
+      id: fileId,
       file: syntheticFile,
       status: 'uploading',
       progress: 0,
       type: 'youtube',
-      youtubeUrl,
+      youtubeUrl: url,
     };
+
+    const projectId = projectState.id || Math.random().toString(36).substr(2, 9);
 
     setProjectState(prevState => ({
       ...prevState,
       files: [...prevState.files, projectFile],
-      projectName,
       id: projectId,
     }));
 
     try {
-      const analyzedData = await analyzeYoutubeUrl(youtubeUrl, language, (status, progress) => {
+      const analyzedData = await analyzeYoutubeUrl(url, language, (status, progress) => {
         setProjectState(prevState => {
-          if (!prevState.files.find(f => f.id === id)) return prevState;
+          if (!prevState.files.find(f => f.id === fileId)) return prevState;
           return {
             ...prevState,
             files: prevState.files.map(f =>
-              f.id === id
-                ? { ...f, status, progress: progress || f.progress }
-                : f
+              f.id === fileId ? { ...f, status, progress: progress || f.progress } : f
             )
           };
         });
-      }, transcriptOverride);
+      });
 
-      const youtubeTitle = analyzedData.videoTitle || youtubeUrl;
-      const transcriptFile = new File(
-        [analyzedData.transcript || youtubeUrl],
-        `${youtubeTitle.replace(/[\\/:*?"<>|]/g, '-').slice(0, 80) || 'YouTube Video'}.txt`,
-        { type: 'text/plain' }
-      );
+      const { youtubeVideoId, ...researchData } = analyzedData;
 
       setProjectState(prevState => {
-        if (!prevState.files.find(f => f.id === id)) return prevState;
+        if (!prevState.files.find(f => f.id === fileId)) return prevState;
         const updatedFiles = prevState.files.map(f =>
-          f.id === id ? {
+          f.id === fileId ? {
             ...f,
-            file: transcriptFile,
             status: 'uploaded' as const,
             progress: 100,
-            youtubeTitle,
-            analysisData: analyzedData
+            youtubeTitle: (researchData as any).videoTitle || url,
+            analysisData: researchData,
           } : f
         );
 
-        const currentName = prevState.projectName;
         const projectToSave: SavedProject = {
           id: prevState.id!,
-          name: currentName,
+          name: prevState.projectName,
           date: new Date().toISOString(),
           fileType: 'youtube',
           fileCount: updatedFiles.length,
-          data: analyzedData,
+          data: researchData,
         };
 
         setHistory(prevHistory => {
@@ -2264,20 +2216,20 @@ export const App: React.FC = () => {
         return {
           ...prevState,
           files: updatedFiles,
-          data: analyzedData,
-          error: null
+          data: researchData,
+          error: null,
         };
       });
     } catch (error: any) {
-      console.error(`Error processing YouTube URL ${youtubeUrl}:`, error);
+      console.error('YouTube analysis error:', error);
       setProjectState(prevState => {
-        if (!prevState.files.find(f => f.id === id)) return prevState;
+        if (!prevState.files.find(f => f.id === fileId)) return prevState;
         return {
           ...prevState,
           files: prevState.files.map(f =>
-            f.id === id ? { ...f, status: 'error', error: error.message } : f
+            f.id === fileId ? { ...f, status: 'error', error: error.message } : f
           ),
-          error: error.message || t.common.error
+          error: error.message || t.common.error,
         };
       });
     }
