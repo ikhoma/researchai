@@ -50,10 +50,8 @@ export const TopNav: React.FC<TopNavProps> = ({ currentScreen, onNavigate, isSet
     // If we have analyzed data, allow navigation to all tabs
     if (hasData) return false;
 
-    // Otherwise (no data), disable analysis steps if we are still in the setup phase
-    if (isSetup) return true;
-
-    return false;
+    // Otherwise (no data), disable all analysis steps
+    return true;
   };
 
   return (

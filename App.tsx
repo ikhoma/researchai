@@ -1478,9 +1478,9 @@ const AffinityScreen: React.FC<{
   };
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="max-w-screen-2xl mx-auto w-full h-full flex flex-col gap-6">
       {/* Header... same as previous */}
-      <div className="flex justify-between items-start mb-4 flex-shrink-0 px-2">
+      <div className="flex justify-between items-start flex-shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">{projectName}</h1>
           <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
@@ -2110,8 +2110,12 @@ export const App: React.FC = () => {
       const storedState = localStorage.getItem(STORAGE_KEY);
       if (storedState) {
         const parsedState = JSON.parse(storedState);
+        let restoredScreen = parsedState.currentScreen;
+        if ([AppScreen.TRANSCRIPT, AppScreen.AFFINITY, AppScreen.INSIGHTS, AppScreen.SUMMARY, AppScreen.END].includes(restoredScreen)) {
+          restoredScreen = AppScreen.UPLOAD;
+        }
         // CLEAR files AND data on reload to prevent ghost state
-        return { ...parsedState, files: [], data: null, isProcessing: false, error: null };
+        return { ...parsedState, currentScreen: restoredScreen, files: [], data: null, isProcessing: false, error: null };
       }
     } catch (e) {
       console.error("Failed to parse stored project state:", e);
