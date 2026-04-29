@@ -1864,12 +1864,12 @@ const InsightsScreen: React.FC<{ data: ResearchData, projectName: string, t: typ
               <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center flex-shrink-0">
                 {i + 1}
               </div>
-              <p className="text-sm text-slate-700 font-medium leading-relaxed">
+              <p className="text-sm text-slate-700 leading-relaxed">
                 {pattern}
               </p>
             </div>
           )) : (
-            <p className="text-slate-400 italic">No patterns detected.</p>
+            <p className="text-sm text-slate-400 italic">No patterns detected.</p>
           )}
         </div>
       </div>
@@ -2046,12 +2046,12 @@ const SummaryScreen: React.FC<{ data: ResearchData, projectName: string, t: type
         </h2>
         <ul className="space-y-3">
           {keyFindings.length > 0 ? keyFindings.map((finding, i) => (
-            <li key={i} className="flex gap-3 text-slate-700 leading-relaxed">
+            <li key={i} className="flex gap-3 text-sm text-slate-700 leading-relaxed">
               <span className="text-[#BFA7F5] font-bold">•</span>
               {finding}
             </li>
           )) : (
-            <p className="text-slate-400 italic">No key findings generated.</p>
+            <p className="text-sm text-slate-400 italic">No key findings generated.</p>
           )}
         </ul>
       </div>
@@ -2064,11 +2064,11 @@ const SummaryScreen: React.FC<{ data: ResearchData, projectName: string, t: type
           </h3>
           <div className="space-y-4">
             {keyQuotes.length > 0 ? keyQuotes.map((quote, i) => (
-              <blockquote key={i} className="relative pl-4 border-l-4 border-purple-200 italic text-purple-800 text-sm">
+              <blockquote key={i} className="relative pl-4 border-l-4 border-purple-200 italic text-slate-700 text-sm leading-relaxed">
                 "{quote}"
               </blockquote>
             )) : (
-              <p className="text-slate-400 italic pl-4">No quotes extracted.</p>
+              <p className="text-sm text-slate-400 italic pl-4">No quotes extracted.</p>
             )}
           </div>
         </div>
@@ -2086,7 +2086,7 @@ const SummaryScreen: React.FC<{ data: ResearchData, projectName: string, t: type
                 <div className={`mt-1 w-2 h-2 rounded-full flex-shrink-0 ${task.priority === 'High' ? 'bg-red-500' : task.priority === 'Medium' ? 'bg-amber-500' : 'bg-green-500'
                   }`}></div>
                 <div>
-                  <p className="text-sm text-slate-800 font-medium">{task.text}</p>
+                  <p className="text-sm text-slate-700 leading-relaxed">{task.text}</p>
                   <span className={`text-[10px] uppercase font-bold tracking-wider ${task.priority === 'High' ? 'text-red-500' : task.priority === 'Medium' ? 'text-amber-600' : 'text-green-600'
                     }`}>
                     {(t.summary.priority as any)[task.priority] || task.priority} Priority
@@ -2094,7 +2094,7 @@ const SummaryScreen: React.FC<{ data: ResearchData, projectName: string, t: type
                 </div>
               </div>
             )) : (
-              <p className="text-slate-400 italic">No recommendations generated.</p>
+              <p className="text-sm text-slate-400 italic">No recommendations generated.</p>
             )}
           </div>
         </div>
