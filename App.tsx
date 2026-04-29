@@ -230,7 +230,7 @@ const UploadScreen: React.FC<{
         </div>
 
         {activeTab === 'youtube' && (
-          <div className="border-2 border-dashed border-slate-200 rounded-xl p-12 text-center">
+          <div className="border border-slate-200 shadow-sm bg-white rounded-xl p-12 text-center">
              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="material-icons text-3xl">smart_display</span>
             </div>
@@ -279,7 +279,7 @@ const UploadScreen: React.FC<{
               <span className="material-icons text-3xl">cloud_upload</span>
             </div>
             <h3 className="text-lg font-medium text-slate-900 mb-1">{t.upload.dragDrop}</h3>
-            <p className="text-slate-500 mb-6 text-sm">{t.upload.supports} <br /><strong>{t.upload.maxSize}</strong></p>
+            <p className="text-slate-500 mb-6 text-sm">{t.upload.supports} {t.upload.maxSize}</p>
 
             <div className="flex justify-center gap-4">
               <label className="h-[44px] px-6 bg-slate-900 text-white rounded-lg cursor-pointer hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
