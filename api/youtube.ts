@@ -200,6 +200,7 @@ function parseTranscriptPayload(payload: string, lang?: string): TranscriptSegme
 }
 
 async function fetchTranscriptViaInnerTube(videoId: string): Promise<TranscriptSegment[]> {
+    const failures: string[] = [];
     const clients = [
         {
             clientName: "ANDROID",
@@ -233,11 +234,19 @@ async function fetchTranscriptViaInnerTube(videoId: string): Promise<TranscriptS
                 }),
             });
 
-            if (!playerResponse.ok) continue;
+            if (!playerResponse.ok) {
+                failures.push(`${client.clientName}: player ${playerResponse.status}`);
+                continue;
+            }
 
             const playerJson = await playerResponse.json();
+            const playabilityStatus = playerJson?.playabilityStatus?.status;
+            const playabilityReason = playerJson?.playabilityStatus?.reason;
             const captionTracks = playerJson?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-            if (!Array.isArray(captionTracks) || captionTracks.length === 0) continue;
+            if (!Array.isArray(captionTracks) || captionTracks.length === 0) {
+                failures.push(`${client.clientName}: no caption tracks (${playabilityStatus || "unknown"}${playabilityReason ? `: ${playabilityReason}` : ""})`);
+                continue;
+            }
 
             const preferredTrack =
                 captionTracks.find((track: any) => track.languageCode === "en") ||
@@ -253,38 +262,43 @@ async function fetchTranscriptViaInnerTube(videoId: string): Promise<TranscriptS
                     "User-Agent": client.userAgent,
                 },
             });
-            if (!transcriptResponse.ok) continue;
+            if (!transcriptResponse.ok) {
+                failures.push(`${client.clientName}: transcript ${transcriptResponse.status}`);
+                continue;
+            }
 
             const transcriptPayload = await transcriptResponse.text();
             const segments = parseTranscriptPayload(transcriptPayload, preferredTrack.languageCode);
             if (segments.length > 0) return segments;
+            failures.push(`${client.clientName}: transcript payload was empty`);
         } catch {
-            // Try the next client profile.
+            failures.push(`${client.clientName}: request failed`);
         }
     }
 
-    return [];
+    throw new Error(`Innertube fallback failed: ${failures.join("; ") || "no caption tracks"}`);
 }
 
 async function fetchYoutubeTranscript(videoId: string, youtubeUrl: string): Promise<TranscriptSegment[]> {
-    const attempts: Array<() => Promise<TranscriptSegment[]>> = [
-        () => YoutubeTranscript.fetchTranscript(videoId),
-        () => YoutubeTranscript.fetchTranscript(youtubeUrl),
-        () => YoutubeTranscript.fetchTranscript(videoId, { lang: "en" }),
-        () => fetchTranscriptViaInnerTube(videoId),
+    const attempts: Array<{ label: string; run: () => Promise<TranscriptSegment[]> }> = [
+        { label: "youtube-transcript:id", run: () => YoutubeTranscript.fetchTranscript(videoId) },
+        { label: "youtube-transcript:url", run: () => YoutubeTranscript.fetchTranscript(youtubeUrl) },
+        { label: "youtube-transcript:en", run: () => YoutubeTranscript.fetchTranscript(videoId, { lang: "en" }) },
+        { label: "innertube", run: () => fetchTranscriptViaInnerTube(videoId) },
     ];
 
-    let lastError: unknown;
+    const failures: string[] = [];
     for (const attempt of attempts) {
         try {
-            const segments = await attempt();
+            const segments = await attempt.run();
             if (segments.length > 0) return segments;
+            failures.push(`${attempt.label}: no segments`);
         } catch (error) {
-            lastError = error;
+            failures.push(`${attempt.label}: ${error instanceof Error ? error.message : String(error)}`);
         }
     }
 
-    throw lastError || new Error("No transcript segments were returned.");
+    throw new Error(`Transcript fetch failed after fallback attempts. ${failures.join(" | ")}`);
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -315,7 +329,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             rawSegments = await fetchYoutubeTranscript(videoId, youtubeUrl);
         } catch (e: any) {
             return res.status(422).json({
-                error: `Could not fetch transcript for this video. It may have captions disabled or be unavailable. (${e?.message || e})`,
+                error: `Could not fetch transcript for this video. ${e?.message || e}`,
             });
         }
 
