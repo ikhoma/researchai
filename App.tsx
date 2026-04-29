@@ -449,6 +449,54 @@ const TranscriptScreen: React.FC<{
   t: typeof translations['en']
 }> = ({ data, projectName, files, onUpdateTag, onAddHighlight, onAddAffinity, t }) => {
   const [expandedState, setExpandedState] = useState<Record<string, boolean>>({});
+
+  const handleExportMD = () => {
+    const lines: string[] = [];
+    lines.push(`# ${projectName}`);
+    lines.push('');
+    lines.push(`_Exported: ${new Date().toLocaleString()}_`);
+    lines.push('');
+
+    // Tags legend
+    const allTags = files?.flatMap(f => f.analysisData?.tags || []) || [];
+    const uniqueTags = Array.from(new Map(allTags.map(t => [t.id, t])).values());
+    if (uniqueTags.length) {
+      lines.push('## Themes / Tags');
+      uniqueTags.forEach(tag => lines.push(`- **${tag.label}**`));
+      lines.push('');
+    }
+
+    // Per-file transcripts & highlights
+    files?.forEach((file, idx) => {
+      const d = file.analysisData;
+      if (!d) return;
+      lines.push(`## File ${idx + 1}: ${file.file?.name || 'Source'}`);
+      lines.push('');
+      if (d.transcript) {
+        lines.push('### Transcript');
+        lines.push('');
+        d.transcript.split('\n').forEach((l: string) => lines.push(l));
+        lines.push('');
+      }
+      if (d.highlights?.length) {
+        lines.push('### Highlights');
+        lines.push('');
+        d.highlights.forEach((h: any) => {
+          const tag = d.tags?.find((t: any) => t.id === h.tagId);
+          lines.push(`- "${h.text}" ${tag ? `_(${tag.label})_` : ''}`);
+        });
+        lines.push('');
+      }
+    });
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${projectName.replace(/[^a-z0-9]/gi, '_')}_transcript.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
   const [selectionMenu, setSelectionMenu] = useState<{ x: number, y: number, text: string, fileId: string } | null>(null);
   const [showTagModal, setShowTagModal] = useState(false);
   const [newTagLabel, setNewTagLabel] = useState("");
@@ -730,8 +778,12 @@ const TranscriptScreen: React.FC<{
           </p>
         </div>
         <div className="flex gap-2">
-          <button className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-            Export to PDF
+          <button
+            onClick={handleExportMD}
+            className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+          >
+            <span className="material-icons text-sm">description</span>
+            Export to MD
           </button>
         </div>
       </div>
@@ -1042,6 +1094,39 @@ const AffinityScreen: React.FC<{
   t: typeof translations['en']
 }> = ({ data, projectName, files, onUpdateClusters, t }) => {
   const [clusters, setClusters] = useState<Cluster[]>([]);
+
+  const handleExportMD = () => {
+    const lines: string[] = [];
+    lines.push(`# ${projectName} — Affinity Map`);
+    lines.push('');
+    lines.push(`_Exported: ${new Date().toLocaleString()}_`);
+    lines.push('');
+
+    if (clusters.length === 0) {
+      lines.push('_No clusters yet._');
+    } else {
+      clusters.forEach(cluster => {
+        lines.push(`## ${cluster.label || 'Untitled Cluster'}`);
+        lines.push('');
+        if (cluster.items?.length) {
+          cluster.items.forEach((item: any) => {
+            lines.push(`- "${item.text || item}"`);
+          });
+        } else {
+          lines.push('_Empty cluster._');
+        }
+        lines.push('');
+      });
+    }
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${projectName.replace(/[^a-z0-9]/gi, '_')}_affinity_map.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
   const [activeId, setActiveId] = useState<string | null>(null);
 
   const [scale, setScale] = useState(1);
@@ -1375,8 +1460,12 @@ const AffinityScreen: React.FC<{
             <span className="material-icons text-sm">dashboard_customize</span>
             Auto Layout
           </button>
-          <button className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-            Export to PDF
+          <button
+            onClick={handleExportMD}
+            className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+          >
+            <span className="material-icons text-sm">description</span>
+            Export to MD
           </button>
         </div>
       </div>
