@@ -8,6 +8,13 @@ export const config = {
     },
 };
 
+type TranscriptSegment = {
+    text: string;
+    duration?: number;
+    offset?: number;
+    lang?: string;
+};
+
 // Reuse the same schema as analyze.ts
 const MAIN_SCHEMA: Schema = {
     type: Type.OBJECT,
@@ -126,6 +133,160 @@ async function fetchVideoTitle(youtubeUrl: string): Promise<string | undefined> 
     }
 }
 
+function decodeEntities(value: string): string {
+    return value
+        .replace(/&amp;/g, "&")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+        .replace(/&#x([a-fA-F0-9]+);/g, (_, code) => String.fromCharCode(parseInt(code, 16)));
+}
+
+function parseTranscriptPayload(payload: string, lang?: string): TranscriptSegment[] {
+    const trimmed = payload.trim();
+    if (!trimmed) return [];
+
+    if (trimmed.startsWith("{")) {
+        const parsed = JSON.parse(trimmed);
+        const events = Array.isArray(parsed.events) ? parsed.events : [];
+        return events
+            .map((event: any) => {
+                const text = Array.isArray(event.segs)
+                    ? event.segs.map((seg: any) => seg.utf8 || "").join("")
+                    : "";
+                return {
+                    text: text.replace(/\s+/g, " ").trim(),
+                    offset: event.tStartMs,
+                    duration: event.dDurationMs,
+                    lang,
+                };
+            })
+            .filter((segment: TranscriptSegment) => Boolean(segment.text));
+    }
+
+    const segments: TranscriptSegment[] = [];
+    const pRegex = /<p\s+t="(\d+)"\s+d="(\d+)"[^>]*>([\s\S]*?)<\/p>/g;
+    let pMatch: RegExpExecArray | null;
+    while ((pMatch = pRegex.exec(trimmed)) !== null) {
+        const inner = pMatch[3];
+        const text = decodeEntities(inner.replace(/<[^>]+>/g, "")).replace(/\s+/g, " ").trim();
+        if (text) {
+            segments.push({
+                text,
+                offset: Number(pMatch[1]),
+                duration: Number(pMatch[2]),
+                lang,
+            });
+        }
+    }
+    if (segments.length > 0) return segments;
+
+    const textRegex = /<text start="([^"]*)" dur="([^"]*)">([\s\S]*?)<\/text>/g;
+    let textMatch: RegExpExecArray | null;
+    while ((textMatch = textRegex.exec(trimmed)) !== null) {
+        const text = decodeEntities(textMatch[3]).replace(/\s+/g, " ").trim();
+        if (text) {
+            segments.push({
+                text,
+                offset: Math.round(Number(textMatch[1]) * 1000),
+                duration: Math.round(Number(textMatch[2]) * 1000),
+                lang,
+            });
+        }
+    }
+    return segments;
+}
+
+async function fetchTranscriptViaInnerTube(videoId: string): Promise<TranscriptSegment[]> {
+    const clients = [
+        {
+            clientName: "ANDROID",
+            clientVersion: "20.10.38",
+            userAgent: "com.google.android.youtube/20.10.38 (Linux; U; Android 14)",
+        },
+        {
+            clientName: "WEB",
+            clientVersion: "2.20240401.00.00",
+            userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0 Safari/537.36",
+        },
+    ];
+
+    for (const client of clients) {
+        try {
+            const playerResponse = await fetch("https://www.youtube.com/youtubei/v1/player?prettyPrint=false", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "User-Agent": client.userAgent,
+                },
+                body: JSON.stringify({
+                    context: {
+                        client: {
+                            clientName: client.clientName,
+                            clientVersion: client.clientVersion,
+                            hl: "en",
+                        },
+                    },
+                    videoId,
+                }),
+            });
+
+            if (!playerResponse.ok) continue;
+
+            const playerJson = await playerResponse.json();
+            const captionTracks = playerJson?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
+            if (!Array.isArray(captionTracks) || captionTracks.length === 0) continue;
+
+            const preferredTrack =
+                captionTracks.find((track: any) => track.languageCode === "en") ||
+                captionTracks.find((track: any) => track.kind === "asr") ||
+                captionTracks[0];
+
+            const transcriptUrl = new URL(preferredTrack.baseUrl);
+            transcriptUrl.searchParams.set("fmt", "json3");
+
+            const transcriptResponse = await fetch(transcriptUrl, {
+                headers: {
+                    "Accept-Language": preferredTrack.languageCode || "en",
+                    "User-Agent": client.userAgent,
+                },
+            });
+            if (!transcriptResponse.ok) continue;
+
+            const transcriptPayload = await transcriptResponse.text();
+            const segments = parseTranscriptPayload(transcriptPayload, preferredTrack.languageCode);
+            if (segments.length > 0) return segments;
+        } catch {
+            // Try the next client profile.
+        }
+    }
+
+    return [];
+}
+
+async function fetchYoutubeTranscript(videoId: string, youtubeUrl: string): Promise<TranscriptSegment[]> {
+    const attempts: Array<() => Promise<TranscriptSegment[]>> = [
+        () => YoutubeTranscript.fetchTranscript(videoId),
+        () => YoutubeTranscript.fetchTranscript(youtubeUrl),
+        () => YoutubeTranscript.fetchTranscript(videoId, { lang: "en" }),
+        () => fetchTranscriptViaInnerTube(videoId),
+    ];
+
+    let lastError: unknown;
+    for (const attempt of attempts) {
+        try {
+            const segments = await attempt();
+            if (segments.length > 0) return segments;
+        } catch (error) {
+            lastError = error;
+        }
+    }
+
+    throw lastError || new Error("No transcript segments were returned.");
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
     try {
         if (req.method !== "POST") {
@@ -149,9 +310,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
 
         // Fetch captions — throws if captions are disabled
-        let rawSegments: { text: string }[];
+        let rawSegments: TranscriptSegment[];
         try {
-            rawSegments = await YoutubeTranscript.fetchTranscript(videoId);
+            rawSegments = await fetchYoutubeTranscript(videoId, youtubeUrl);
         } catch (e: any) {
             return res.status(422).json({
                 error: `Could not fetch transcript for this video. It may have captions disabled or be unavailable. (${e?.message || e})`,
