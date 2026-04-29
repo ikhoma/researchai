@@ -41,6 +41,41 @@ export const analyzeResearchFile = async (
 };
 
 /**
+ * Analyze a YouTube video by URL.
+ * Fetches captions server-side via /api/youtube and runs Gemini analysis.
+ * Returns ResearchData (same shape as analyzeResearchFile) plus optional
+ * YouTube metadata for display/embedding.
+ */
+export const analyzeYoutubeUrl = async (
+  youtubeUrl: string,
+  language: Language = "uk",
+  onProgress?: (status: "uploading" | "processing" | "uploaded", progress?: number) => void
+): Promise<ResearchData & { youtubeVideoId?: string; videoTitle?: string }> => {
+  onProgress?.("uploading", 20);
+
+  const res = await fetch("/api/youtube", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ youtubeUrl, language }),
+  });
+
+  onProgress?.("processing", 60);
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    const msg =
+      data?.error ||
+      data?.message ||
+      `YouTube request failed: ${res.status} ${res.statusText}`;
+    throw new Error(msg);
+  }
+
+  onProgress?.("uploaded", 100);
+  return data as ResearchData & { youtubeVideoId?: string; videoTitle?: string };
+};
+
+/**
  * Optional: Affinity map generation.
  * Якщо у тебе вкладка Affinity використовує generateAffinityMap —
  * цей експорт має існувати, інакше build падає.

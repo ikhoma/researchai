@@ -111,7 +111,7 @@ export interface SavedProject {
   id: string;
   name: string;
   date: string;
-  fileType: 'video' | 'audio' | 'text';
+  fileType: 'video' | 'audio' | 'text' | 'youtube';
   fileCount?: number;
   data: ResearchData;
 }
@@ -123,7 +123,9 @@ export interface ProjectFile {
   file: File;
   status: FileStatus;
   progress: number; // 0-100
-  type: 'video' | 'audio' | 'text';
+  type: 'video' | 'audio' | 'text' | 'youtube';
+  youtubeUrl?: string;   // original YouTube URL for embed
+  youtubeTitle?: string; // video title returned by API
   error?: string;
   analysisData?: ResearchData; // Store analysis per file
 }

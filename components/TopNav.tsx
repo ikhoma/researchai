@@ -16,10 +16,10 @@ const TopNavItem: React.FC<{ label: string; icon: string; screen: AppScreen; act
     disabled={disabled}
     className={`
       relative px-4 py-3 text-sm font-medium transition-colors flex items-center gap-2
-      ${active 
-        ? 'text-purple-700' 
-        : disabled 
-          ? 'text-slate-300 cursor-not-allowed' 
+      ${active
+        ? 'text-purple-700'
+        : disabled
+          ? 'text-slate-300 cursor-not-allowed'
           : 'text-slate-500 hover:text-slate-700'
       }
     `}
@@ -52,7 +52,7 @@ export const TopNav: React.FC<TopNavProps> = ({ currentScreen, onNavigate, isSet
 
     // Otherwise (no data), disable analysis steps if we are still in the setup phase
     if (isSetup) return true;
-    
+
     return false;
   };
 
