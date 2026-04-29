@@ -2111,7 +2111,7 @@ export const App: React.FC = () => {
       if (storedState) {
         const parsedState = JSON.parse(storedState);
         let restoredScreen = parsedState.currentScreen;
-        if ([AppScreen.TRANSCRIPT, AppScreen.AFFINITY, AppScreen.INSIGHTS, AppScreen.SUMMARY, AppScreen.END].includes(restoredScreen)) {
+        if ([AppScreen.TRANSCRIPT, AppScreen.AFFINITY, AppScreen.INSIGHTS, AppScreen.SUMMARY, AppScreen.END, AppScreen.PROCESSING].includes(restoredScreen)) {
           restoredScreen = AppScreen.UPLOAD;
         }
         // CLEAR files AND data on reload to prevent ghost state
