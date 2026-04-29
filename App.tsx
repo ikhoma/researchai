@@ -1771,8 +1771,8 @@ const InsightsScreen: React.FC<{ data: ResearchData, projectName: string, t: typ
       {/* Header */}
       <div className="flex justify-between items-end">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">{t.insights.title}</h1>
-          <p className="text-base text-slate-500 mt-1">{t.insights.subtitle}</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t.insights.title}</h1>
+          <p className="text-xs text-slate-500 mt-1">{t.insights.subtitle}</p>
         </div>
         <div className="bg-white px-4 py-2 rounded-lg border border-slate-200 shadow-sm flex items-center gap-2">
           <span className="text-sm font-medium text-slate-500">{t.insights.sentiment}:</span>
@@ -2027,8 +2027,8 @@ const SummaryScreen: React.FC<{ data: ResearchData, projectName: string, t: type
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">{t.summary.executive}</h1>
-          <p className="text-slate-500">{projectName} • {t.summary.generatedBy}</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t.summary.executive}</h1>
+          <p className="text-xs text-slate-500 mt-1">{projectName} • {t.summary.generatedBy}</p>
         </div>
         <button
           onClick={handleExportMD}
