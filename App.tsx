@@ -77,7 +77,7 @@ const StartScreen: React.FC<{ onStart: () => void, t: typeof translations['en'] 
       <div className="flex gap-4">
         <button
           onClick={onStart}
-          className="group relative px-8 py-4 bg-slate-900 text-white text-lg font-medium rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition-all flex items-center gap-2"
+          className="group relative h-[44px] px-8 bg-slate-900 text-white text-base font-medium rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition-all flex items-center justify-center gap-2"
         >
           {t.start.button}
           <span className="material-icons group-hover:translate-x-1 transition-transform">arrow_forward</span>
@@ -247,14 +247,13 @@ const UploadScreen: React.FC<{
                     if (e.key === 'Enter' && youtubeUrl.trim()) handleYoutubeAdd();
                   }}
                   placeholder="https://www.youtube.com/watch?v=..."
-                  className="flex-1 px-4 py-3 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:border-red-400 transition-colors placeholder-slate-400"
+                  className="flex-1 h-[44px] px-4 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:border-red-400 transition-colors placeholder-slate-400"
                 />
                 <button
                   onClick={handleYoutubeAdd}
                   disabled={!youtubeUrl.trim()}
-                  className="px-6 py-3 bg-red-500 text-white font-medium text-sm rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  className="h-[44px] px-6 bg-red-500 text-white font-medium text-sm rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                 >
-                  <span className="material-icons text-base">add</span>
                   Add
                 </button>
               </div>
@@ -283,7 +282,7 @@ const UploadScreen: React.FC<{
             <p className="text-slate-500 mb-6 text-sm">{t.upload.supports} <br /><strong>{t.upload.maxSize}</strong></p>
 
             <div className="flex justify-center gap-4">
-              <label className="px-6 py-2 bg-slate-900 text-white rounded-lg cursor-pointer hover:bg-slate-800 transition-colors flex items-center gap-2">
+              <label className="h-[44px] px-6 bg-slate-900 text-white rounded-lg cursor-pointer hover:bg-slate-800 transition-colors flex items-center justify-center gap-2">
                 {t.upload.browse}
                 <input type="file" className="hidden" multiple accept="video/*,audio/*,.txt" onChange={(e) => { handleFiles(e.target.files); e.target.value = ''; }} />
               </label>
@@ -291,7 +290,7 @@ const UploadScreen: React.FC<{
               {isRecording ? (
                 <button
                   onClick={stopRecording}
-                  className="px-6 py-2 bg-red-50 border border-red-200 text-red-600 rounded-lg cursor-pointer hover:bg-red-100 transition-colors flex items-center gap-2 animate-pulse"
+                  className="h-[44px] px-6 bg-red-50 border border-red-200 text-red-600 rounded-lg cursor-pointer hover:bg-red-100 transition-colors flex items-center justify-center gap-2 animate-pulse"
                 >
                   <span className="material-icons text-sm">stop_circle</span>
                   {t.upload.stopRecord}
@@ -299,7 +298,7 @@ const UploadScreen: React.FC<{
               ) : (
                 <button
                   onClick={startRecording}
-                  className="px-6 py-2 bg-white border border-slate-200 text-slate-700 font-medium rounded-lg cursor-pointer hover:bg-slate-50 transition-colors flex items-center gap-2"
+                  className="h-[44px] px-6 bg-white border border-slate-200 text-slate-700 font-medium rounded-lg cursor-pointer hover:bg-slate-50 transition-colors flex items-center justify-center gap-2"
                 >
                   <span className="material-icons text-sm text-slate-500">mic</span>
                   {t.upload.record}
@@ -393,10 +392,10 @@ const UploadScreen: React.FC<{
         </div>
 
         {hasCompletedFiles && (
-          <div className="mt-6 flex justify-end animate-fade-in">
+          <div className="mt-6 flex justify-start animate-fade-in">
             <button
               onClick={onProceed}
-              className="px-6 py-2 bg-slate-900 text-white rounded-lg font-medium hover:bg-slate-800 transition-colors flex items-center gap-2"
+              className="h-[44px] px-6 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors flex items-center justify-center gap-2"
             >
               {t.success.button}
               <span className="material-icons">arrow_forward</span>
@@ -419,7 +418,7 @@ const ProcessingScreen: React.FC<{ t: typeof translations['en'], error?: string 
         <p className="text-slate-500 text-center max-w-md mb-8">{error}</p>
         <button
           onClick={onBack}
-          className="px-6 py-3 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200"
+          className="h-[44px] px-6 bg-slate-900 text-white font-medium text-sm rounded-lg hover:bg-slate-800 transition-colors shadow-lg shadow-slate-200 flex items-center justify-center"
         >
           Try Again
         </button>
@@ -457,7 +456,7 @@ const SuccessScreen: React.FC<{ onContinue: () => void, t: typeof translations['
 
     <button
       onClick={onContinue}
-      className="px-8 py-4 bg-[#BFA7F5] text-white text-lg font-bold rounded-xl shadow-lg hover:bg-[#a68bf0] hover:scale-105 transition-all flex items-center gap-2"
+      className="h-[44px] px-8 bg-[#BFA7F5] text-white text-base font-bold rounded-xl shadow-lg hover:bg-[#a68bf0] hover:scale-105 transition-all flex items-center justify-center gap-2"
     >
       {t.success.button}
       <span className="material-icons">arrow_forward</span>
@@ -806,7 +805,7 @@ const TranscriptScreen: React.FC<{
         <div className="flex gap-2">
           <button
             onClick={handleExportMD}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+            className="h-[38px] px-4 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-2"
           >
             <span className="material-icons text-sm">description</span>
             Export to MD
@@ -1491,14 +1490,14 @@ const AffinityScreen: React.FC<{
         <div className="flex gap-2">
           <button
             onClick={handleCreateCluster}
-            className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 flex items-center gap-2 shadow-sm"
+            className="h-[38px] px-4 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 flex items-center justify-center gap-2 shadow-sm"
           >
             <span className="material-icons text-sm">add_circle</span>
             Add Cluster
           </button>
           <button
             onClick={handleAutoLayout}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 shadow-sm"
+            className="h-[38px] px-4 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-2 shadow-sm"
             title="Auto Arrange"
           >
             <span className="material-icons text-sm">dashboard_customize</span>
@@ -1506,7 +1505,7 @@ const AffinityScreen: React.FC<{
           </button>
           <button
             onClick={handleExportMD}
-            className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2"
+            className="h-[38px] px-4 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-2"
           >
             <span className="material-icons text-sm">description</span>
             Export to MD
@@ -1538,7 +1537,7 @@ const AffinityScreen: React.FC<{
                   setIsGenerating(false);
                 }
               }}
-              className="px-4 py-3 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm flex items-center gap-2"
+              className="h-[44px] px-6 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm flex items-center justify-center gap-2"
             >
               <span className="material-icons text-base">auto_awesome</span>
               Generate Affinity Map
@@ -2033,7 +2032,7 @@ const SummaryScreen: React.FC<{ data: ResearchData, projectName: string, t: type
         </div>
         <button
           onClick={handleExportMD}
-          className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 shadow-sm"
+          className="h-[38px] px-4 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-2 shadow-sm"
         >
           <span className="material-icons text-sm">description</span>
           Export to MD
