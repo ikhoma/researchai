@@ -49,14 +49,15 @@ export const analyzeResearchFile = async (
 export const analyzeYoutubeUrl = async (
   youtubeUrl: string,
   language: Language = "uk",
-  onProgress?: (status: "uploading" | "processing" | "uploaded", progress?: number) => void
+  onProgress?: (status: "uploading" | "processing" | "uploaded", progress?: number) => void,
+  transcriptOverride?: string
 ): Promise<ResearchData & { youtubeVideoId?: string; videoTitle?: string }> => {
   onProgress?.("uploading", 20);
 
   const res = await fetch("/api/youtube", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ youtubeUrl, language }),
+    body: JSON.stringify({ youtubeUrl, language, transcriptOverride }),
   });
 
   onProgress?.("processing", 60);

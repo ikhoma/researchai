@@ -108,7 +108,7 @@ const StartScreen: React.FC<{ onStart: () => void, t: typeof translations['en'] 
 
 const UploadScreen: React.FC<{
   onAddFiles: (files: File[], projectName: string) => void,
-  onAddYoutubeUrl: (url: string, projectName: string) => void,
+  onAddYoutubeUrl: (url: string, projectName: string, transcriptOverride?: string) => void,
   onRemoveFile: (fileId: string) => void,
   files: ProjectFile[],
   isProcessing?: boolean,
@@ -122,6 +122,8 @@ const UploadScreen: React.FC<{
   const [dragActive, setDragActive] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [youtubeTranscript, setYoutubeTranscript] = useState('');
+  const [showYoutubeTranscript, setShowYoutubeTranscript] = useState(false);
   const [youtubeError, setYoutubeError] = useState('');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
 
@@ -184,8 +186,10 @@ const UploadScreen: React.FC<{
       setYoutubeError('Please enter a valid YouTube URL (youtube.com/watch?v=... or youtu.be/...)');
       return;
     }
-    onAddYoutubeUrl(url, projectName);
+    onAddYoutubeUrl(url, projectName, youtubeTranscript.trim() || undefined);
     setYoutubeUrl('');
+    setYoutubeTranscript('');
+    setShowYoutubeTranscript(false);
     setYoutubeError('');
   };
 
@@ -289,6 +293,22 @@ const UploadScreen: React.FC<{
                 Add
               </button>
             </div>
+            <button
+              type="button"
+              onClick={() => setShowYoutubeTranscript(prev => !prev)}
+              className="mt-3 text-xs font-medium text-slate-500 hover:text-slate-800 flex items-center gap-1 mx-auto"
+            >
+              <span className="material-icons text-sm">{showYoutubeTranscript ? 'expand_less' : 'expand_more'}</span>
+              Paste transcript manually
+            </button>
+            {showYoutubeTranscript && (
+              <textarea
+                value={youtubeTranscript}
+                onChange={(e) => setYoutubeTranscript(e.target.value)}
+                placeholder="Paste the YouTube transcript here if automatic fetching is blocked."
+                className="mt-3 w-full min-h-32 px-4 py-3 border border-slate-200 rounded-lg text-sm text-slate-700 focus:outline-none focus:border-[#BFA7F5] transition-colors placeholder-slate-400 resize-y"
+              />
+            )}
             {youtubeError && (
               <p className="mt-2 text-xs text-red-600 flex items-center gap-1">
                 <span className="material-icons text-sm">error_outline</span>
@@ -2170,7 +2190,7 @@ export const App: React.FC = () => {
     });
   };
 
-  const handleAddYoutubeUrl = async (youtubeUrl: string, projectName: string) => {
+  const handleAddYoutubeUrl = async (youtubeUrl: string, projectName: string, transcriptOverride?: string) => {
     const id = Math.random().toString(36).substr(2, 9);
     const projectId = projectState.id || Math.random().toString(36).substr(2, 9);
     const syntheticFile = new File([youtubeUrl], `youtube-${id}.txt`, { type: 'text/plain' });
@@ -2204,7 +2224,7 @@ export const App: React.FC = () => {
             )
           };
         });
-      });
+      }, transcriptOverride);
 
       const youtubeTitle = analyzedData.videoTitle || youtubeUrl;
       const transcriptFile = new File(

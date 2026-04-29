@@ -212,6 +212,16 @@ async function fetchTranscriptViaInnerTube(videoId: string): Promise<TranscriptS
             clientVersion: "2.20240401.00.00",
             userAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0 Safari/537.36",
         },
+        {
+            clientName: "IOS",
+            clientVersion: "20.10.4",
+            userAgent: "com.google.ios.youtube/20.10.4 (iPhone16,2; U; CPU iOS 17_5 like Mac OS X;)",
+        },
+        {
+            clientName: "TVHTML5",
+            clientVersion: "7.20240403.14.00",
+            userAgent: "Mozilla/5.0 (SMART-TV; Linux; Tizen 6.5) AppleWebKit/537.36 (KHTML, like Gecko) SamsungBrowser/5.0 TV Safari/537.36",
+        },
     ];
 
     for (const client of clients) {
@@ -228,6 +238,9 @@ async function fetchTranscriptViaInnerTube(videoId: string): Promise<TranscriptS
                             clientName: client.clientName,
                             clientVersion: client.clientVersion,
                             hl: "en",
+                        },
+                        thirdParty: {
+                            embedUrl: `https://www.youtube.com/embed/${videoId}`,
                         },
                     },
                     videoId,
@@ -312,7 +325,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(500).json({ error: "Server API key missing: GEMINI_API_KEY" });
         }
 
-        const { youtubeUrl, language } = req.body as { youtubeUrl?: string; language?: string };
+        const { youtubeUrl, language, transcriptOverride } = req.body as {
+            youtubeUrl?: string;
+            language?: string;
+            transcriptOverride?: string;
+        };
 
         if (!youtubeUrl) {
             return res.status(400).json({ error: "No YouTube URL provided" });
@@ -323,14 +340,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             return res.status(400).json({ error: "Could not extract a valid YouTube video ID from the URL" });
         }
 
-        // Fetch captions — throws if captions are disabled
+        const pastedTranscript = transcriptOverride?.replace(/\s+/g, " ").trim();
         let rawSegments: TranscriptSegment[];
-        try {
-            rawSegments = await fetchYoutubeTranscript(videoId, youtubeUrl);
-        } catch (e: any) {
-            return res.status(422).json({
-                error: `Could not fetch transcript for this video. ${e?.message || e}`,
-            });
+
+        if (pastedTranscript && pastedTranscript.length >= 20) {
+            rawSegments = [{ text: pastedTranscript }];
+        } else {
+            // Fetch captions — throws if captions are disabled or YouTube blocks the server.
+            try {
+                rawSegments = await fetchYoutubeTranscript(videoId, youtubeUrl);
+            } catch (e: any) {
+                return res.status(422).json({
+                    error: `Could not fetch transcript for this video. ${e?.message || e}`,
+                    canPasteTranscript: true,
+                });
+            }
         }
 
         const rawText = rawSegments.map((s) => s.text).join(" ").replace(/\s+/g, " ").trim();
