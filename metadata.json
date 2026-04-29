@@ -1,5 +1,5 @@
 {
-  "name": "ReserchOO",
+  "name": "Research AI",
   "description": "AI Research Assistant that helps users see the insights behind user interviews.",
   "requestFramePermissions": [
     "microphone"

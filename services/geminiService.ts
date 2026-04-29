@@ -19,25 +19,40 @@ export const analyzeResearchFile = async (
 
   onProgress?.("uploading", 10);
 
-  const res = await fetch("/api/analyze", {
-    method: "POST",
-    body: form,
-  });
+  let currentProgress = 10;
+  const interval = setInterval(() => {
+    if (currentProgress < 95) {
+      currentProgress += Math.floor(Math.random() * 5) + 1;
+      if (currentProgress > 95) currentProgress = 95;
+      onProgress?.("uploading", currentProgress);
+    }
+  }, 1000);
 
-  onProgress?.("processing", 70);
+  try {
+    const res = await fetch("/api/analyze", {
+      method: "POST",
+      body: form,
+    });
 
-  const data = await res.json().catch(() => null);
+    clearInterval(interval);
+    onProgress?.("processing", 99);
 
-  if (!res.ok) {
-    const msg =
-      data?.error ||
-      data?.message ||
-      `Request failed: ${res.status} ${res.statusText}`;
-    throw new Error(msg);
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      const msg =
+        data?.error ||
+        data?.message ||
+        `Request failed: ${res.status} ${res.statusText}`;
+      throw new Error(msg);
+    }
+
+    onProgress?.("uploaded", 100);
+    return data as ResearchData;
+  } catch (err) {
+    clearInterval(interval);
+    throw err;
   }
-
-  onProgress?.("uploaded", 100);
-  return data as ResearchData;
 };
 
 /**
@@ -54,26 +69,42 @@ export const analyzeYoutubeUrl = async (
 ): Promise<ResearchData & { youtubeVideoId?: string; videoTitle?: string }> => {
   onProgress?.("uploading", 20);
 
-  const res = await fetch("/api/youtube", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ youtubeUrl, language, transcriptOverride }),
-  });
+  let currentProgress = 20;
+  const interval = setInterval(() => {
+    if (currentProgress < 95) {
+      // Slower increment for YouTube as processing usually takes a bit longer
+      currentProgress += Math.floor(Math.random() * 3) + 1;
+      if (currentProgress > 95) currentProgress = 95;
+      onProgress?.("uploading", currentProgress);
+    }
+  }, 1200);
 
-  onProgress?.("processing", 60);
+  try {
+    const res = await fetch("/api/youtube", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ youtubeUrl, language, transcriptOverride }),
+    });
 
-  const data = await res.json().catch(() => null);
+    clearInterval(interval);
+    onProgress?.("processing", 99);
 
-  if (!res.ok) {
-    const msg =
-      data?.error ||
-      data?.message ||
-      `YouTube request failed: ${res.status} ${res.statusText}`;
-    throw new Error(msg);
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok) {
+      const msg =
+        data?.error ||
+        data?.message ||
+        `YouTube request failed: ${res.status} ${res.statusText}`;
+      throw new Error(msg);
+    }
+
+    onProgress?.("uploaded", 100);
+    return data as ResearchData & { youtubeVideoId?: string; videoTitle?: string };
+  } catch (err) {
+    clearInterval(interval);
+    throw err;
   }
-
-  onProgress?.("uploaded", 100);
-  return data as ResearchData & { youtubeVideoId?: string; videoTitle?: string };
 };
 
 /**

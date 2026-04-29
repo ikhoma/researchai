@@ -194,7 +194,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const ai = new GoogleGenAI({ apiKey });
 
         const systemPrompt = `
-You are ReserchOO, an expert UX Research Assistant.
+You are Research AI, an expert UX Research Assistant.
 Analyze the provided YouTube user interview video.
 
 Tasks:

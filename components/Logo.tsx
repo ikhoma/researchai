@@ -20,7 +20,7 @@ export const Logo: React.FC<{ size?: 'sm' | 'md' | 'lg' | 'xl'; className?: stri
         </div>
       </div>
       <span className={size === 'xl' ? 'text-4xl' : size === 'lg' ? 'text-3xl' : 'text-xl'}>
-        Reserch AI
+        Research AI
       </span>
     </div>
   );

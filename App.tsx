@@ -22,8 +22,8 @@ import {
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid } from 'recharts';
 import { TopNav } from './components/TopNav';
 
-const STORAGE_KEY = 'reserchoo_project_data_v1';
-const HISTORY_STORAGE_KEY = 'reserchoo_history_v1';
+const STORAGE_KEY = 'research_ai_project_data_v1';
+const HISTORY_STORAGE_KEY = 'research_ai_history_v1';
 
 // --- Helper for MIME types ---
 const getMimeType = (filename: string, fallbackGroup: 'video' | 'audio' | 'text'): string => {
@@ -957,7 +957,10 @@ const TranscriptScreen: React.FC<{
                           <p className="text-sm">Transcribing {file.file.name}...</p>
                         </div>
                       ) : displayData?.transcript ? (
-                        displayData.transcript.split('\n').map((para, i) => {
+                        displayData.transcript
+                          .replace(/\s+(Question:|Answer:|Interviewer:|Participant:|Client:|I:|C:|P:)\s/gi, '\n$1 ')
+                          .split('\n')
+                          .map((para, i) => {
                           const trimmed = para.trim();
                           if (!trimmed) return null;
 
@@ -973,6 +976,21 @@ const TranscriptScreen: React.FC<{
                             if (colonIdx !== -1) {
                               content = trimmed.substring(colonIdx + 1).trim();
                             }
+                          }
+
+                          // Split long paragraphs into logical chunks of ~4 sentences
+                          const sentences = content.match(/[^.!?]+[.!?]+/g);
+                          if (sentences && sentences.length > 4) {
+                            let newContent = '';
+                            for (let j = 0; j < sentences.length; j++) {
+                              newContent += sentences[j].trim();
+                              if ((j + 1) % 4 === 0 && j !== sentences.length - 1) {
+                                newContent += '\n\n';
+                              } else if (j !== sentences.length - 1) {
+                                newContent += ' ';
+                              }
+                            }
+                            content = newContent || content;
                           }
 
                           const mins = Math.floor(i * 1.5);
@@ -1005,7 +1023,7 @@ const TranscriptScreen: React.FC<{
                                   <span className="text-sm font-semibold text-slate-700">{speaker}</span>
                                   <span className="text-xs text-slate-400 font-mono">{timestamp}</span>
                                 </div>
-                                <p className="text-slate-600 leading-relaxed text-sm selection:bg-purple-100 selection:text-purple-900">
+                                <p className="text-slate-600 leading-relaxed text-sm selection:bg-purple-100 selection:text-purple-900 max-w-prose whitespace-pre-wrap">
                                   {renderTextWithHighlights(content, displayData)}
                                 </p>
                               </div>
@@ -1520,9 +1538,9 @@ const AffinityScreen: React.FC<{
                   setIsGenerating(false);
                 }
               }}
-              className="px-8 py-4 bg-slate-900 text-white text-lg font-bold rounded-xl shadow-lg hover:bg-slate-800 hover:scale-105 transition-all flex items-center gap-2"
+              className="px-4 py-3 bg-slate-900 text-white rounded-lg text-sm font-semibold hover:bg-slate-800 transition-colors shadow-sm flex items-center gap-2"
             >
-              <span className="material-icons">auto_awesome</span>
+              <span className="material-icons text-base">auto_awesome</span>
               Generate Affinity Map
             </button>
           </div>
@@ -1972,11 +1990,54 @@ const SummaryScreen: React.FC<{ data: ResearchData, projectName: string, t: type
   const keyQuotes = summary.quotes || (data.keyQuotes && data.keyQuotes.length > 0 ? data.keyQuotes : []);
   const recommendations = summary.recommendations || (data.recommendations && data.recommendations.length > 0 ? data.recommendations : []);
 
+  const handleExportMD = () => {
+    const lines: string[] = [];
+    lines.push(`# ${projectName} - Executive Summary`);
+    lines.push('');
+    lines.push(`_Exported: ${new Date().toLocaleString()}_`);
+    lines.push('');
+
+    if (keyFindings.length > 0) {
+      lines.push('## Key Findings');
+      keyFindings.forEach((f: string) => lines.push(`- ${f}`));
+      lines.push('');
+    }
+
+    if (keyQuotes.length > 0) {
+      lines.push('## Customer Voice (Quotes)');
+      keyQuotes.forEach((q: string) => lines.push(`> "${q}"`));
+      lines.push('');
+    }
+
+    if (recommendations.length > 0) {
+      lines.push('## Actionable Tasks');
+      recommendations.forEach((r: Task) => lines.push(`- [${r.priority}] ${r.text}`));
+      lines.push('');
+    }
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${projectName.replace(/[^a-z0-9]/gi, '_')}_summary.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-slate-900 mb-2">{t.summary.executive}</h1>
-        <p className="text-slate-500">{projectName} • {t.summary.generatedBy}</p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">{t.summary.executive}</h1>
+          <p className="text-slate-500">{projectName} • {t.summary.generatedBy}</p>
+        </div>
+        <button
+          onClick={handleExportMD}
+          className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 flex items-center gap-2 shadow-sm"
+        >
+          <span className="material-icons text-sm">description</span>
+          Export to MD
+        </button>
       </div>
 
       <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
