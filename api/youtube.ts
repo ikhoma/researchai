@@ -61,9 +61,49 @@ const MAIN_SCHEMA: Schema = {
                     },
                     required: ["label", "score", "distribution"],
                 },
+                wordCloud: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            word: { type: Type.STRING },
+                            count: { type: Type.INTEGER },
+                        },
+                        required: ["word", "count"],
+                    },
+                },
+                problemPatternsChart: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            theme: { type: Type.STRING },
+                            frequency: { type: Type.INTEGER },
+                            intensity: { type: Type.INTEGER },
+                        },
+                        required: ["theme", "frequency", "intensity"],
+                    },
+                },
+                insightsTable: {
+                    type: Type.ARRAY,
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            quoteId: { type: Type.STRING },
+                            text: { type: Type.STRING },
+                            theme: { type: Type.STRING },
+                            emotion: { type: Type.STRING },
+                            need: { type: Type.STRING },
+                            opportunity: { type: Type.STRING },
+                            proposedUXSolution: { type: Type.STRING },
+                        },
+                        required: ["quoteId", "text", "theme", "emotion", "need", "opportunity", "proposedUXSolution"],
+                    },
+                },
             },
-            required: ["painPoints", "opportunities", "patterns", "sentiment"],
+            required: ["painPoints", "opportunities", "patterns", "sentiment", "wordCloud", "problemPatternsChart", "insightsTable"],
         },
+
         summary: {
             type: Type.OBJECT,
             properties: {
@@ -170,7 +210,10 @@ Tasks:
    - 15–20 highlights if possible.
 4) INSIGHTS:
    - Pain Points, Opportunities, Patterns.
-   - Sentiment.
+   - Sentiment with distribution (Positive/Neutral/Negative percentages summing to 100).
+   - wordCloud: extract 15–25 emotionally significant or frequently mentioned words with a count (1–10 scale).
+   - problemPatternsChart: list 5–8 recurring problem themes, each with frequency (how often mentioned, 1–10) and intensity (how severe, 1–5).
+   - insightsTable: for each major insight, provide a verbatim quote, theme label, dominant emotion, underlying user need, opportunity, and a concrete proposed UX solution.
 5) SUMMARY:
    - Key Findings + quotes + recommendations.
 
